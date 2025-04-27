@@ -9,7 +9,6 @@ const messageHandler = require('./handlers/messageHandler');
 const callbackHandler = require('./handlers/callbackHandler');
 const adminHandler = require('./handlers/adminHandler');
 const screenshotService = require('./services/screenshotService');
-const checkPlaywright = require('../scripts/check-playwright');
 
 // Initialize Telegram bot
 let bot;
@@ -159,19 +158,6 @@ function setupEventHandlers() {
  */
 async function startup() {
   logger.info('Starting Bubblemaps Telegram Bot...');
-  
-  // Check if Playwright is properly installed
-  try {
-    logger.info('Checking Playwright installation...');
-    const playwrightOk = await checkPlaywright();
-    if (!playwrightOk) {
-      logger.warn('Playwright check failed - screenshots may not work correctly');
-    } else {
-      logger.info('Playwright check passed - screenshot service is ready');
-    }
-  } catch (error) {
-    logger.warn('Error checking Playwright:', error.message);
-  }
   
   // Connect to database
   const dbConnected = await connectToDatabase();

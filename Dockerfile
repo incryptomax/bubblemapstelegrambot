@@ -69,7 +69,7 @@ RUN echo "Checking connectivity to app.bubblemaps.io" && \
 
 # Add a healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node scripts/check-playwright.js || exit 1
+    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
 # Start the bot
 CMD ["node", "src/index.js"] 
