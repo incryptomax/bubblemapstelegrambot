@@ -1,0 +1,12 @@
+<svg width="1280" height="800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f0f0f0"/>
+      <text x="640" y="300" font-family="Arial" font-size="32" text-anchor="middle" fill="#333">
+        Token Distribution Visualization
+      </text>
+      <text x="640" y="370" font-family="Arial" font-size="24" text-anchor="middle" fill="#666">
+        0xa00453052a36d43a99ac1ca145dfe4a952ca33b8 (eth)
+      </text>
+      <text x="640" y="450" font-family="Arial" font-size="18" text-anchor="middle" fill="#999">
+        Visit https://app.bubblemaps.io/eth/token/0xa00453052a36d43a99ac1ca145dfe4a952ca33b8 for interactive view
+      </text>
+    </svg>

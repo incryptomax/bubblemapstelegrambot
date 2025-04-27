@@ -1,0 +1,23 @@
+{
+  "name": "bubblemaps-telegram-checker",
+  "version": "1.0.0",
+  "description": "Telegram bot for checking token information using Bubblemaps API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "moment": "^2.29.4",
+    "mongoose": "^7.6.3",
+    "node-telegram-bot-api": "^0.64.0",
+    "playwright": "^1.52.0",
+    "puppeteer": "^21.5.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

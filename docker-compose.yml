@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Bubblemaps Telegram Bot
+  bot:
+    build: .
+    restart: always
+    env_file: .env
+    volumes:
+      - ./logs:/app/logs
+      - ./screenshots:/app/screenshots
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    depends_on:
+      - mongodb
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - MONGODB_URI=mongodb://mongodb:27017/bubblemaps-bot
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NODE_ENV=production
+      # Increase timeouts for Playwright
+      - PLAYWRIGHT_TIMEOUT=60000
+      - NAVIGATION_TIMEOUT=120000
+      - STABILIZATION_TIME=25000
+      # DNS settings for network troubleshooting
+      - PLAYWRIGHT_BROWSER_LAUNCH_ARGS=--disable-dev-shm-usage --no-sandbox --disable-setuid-sandbox
+    # DNS and network configuration
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "app.bubblemaps.io:104.18.24.49"
+    healthcheck:
+      test: ["CMD", "node", "scripts/check-playwright.js"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - bot_network
+
+  # MongoDB service
+  mongodb:
+    image: mongo:5
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  bot_network:
+    driver: bridge 
