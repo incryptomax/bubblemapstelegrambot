@@ -4,9 +4,9 @@ A Telegram bot that provides token information and bubble maps visualization fro
 
 ## Live Bot
 
-You can find the bot on Telegram: [Bubble Maps Telegram Bot](https://t.me/bubblemapstelegrambot)
+You can find the bot on Telegram: [BubbleMaps Telegram Bot](https://t.me/bubblemapstelegrambot)
 
-Current Version: v0.2.0-Alpha
+Current Version: v1.1.0-Beta
 
 ## Features
 
@@ -106,19 +106,23 @@ STABILIZATION_TIME=25000      # Page stabilization wait time (ms)
 - MongoDB 4.4+
 - Telegram Bot Token (from @BotFather)
 
-### Project Structure
+## Project Structure
 
 ```
 .
-├── config/             # Configuration files
+├── config/         # Configuration files
 ├── src/
-│   ├── bot/          # Bot initialization
-│   ├── handlers/     # Command handlers
-│   ├── models/       # Database models
-│   ├── services/     # Business logic
-│   └── utils/        # Utilities
-├── docs/             # Documentation
-└── assets/           # Static assets
+│   ├── handlers/   # Command and callback handlers
+│   ├── models/     # Database models
+│   ├── services/   # Business logic and API integrations
+│   ├── utils/      # Utility modules (validation, formatting, logging, etc.)
+│   └── assets/     # Fallback images and static assets for the bot
+├── screenshots/    # Generated screenshots for tokens
+├── Dockerfile      # Docker configuration
+├── docker-compose.yml # Docker Compose configuration
+├── package.json    # Project metadata and dependencies
+├── README.md       # Project overview and instructions
+└── ...             # Other files
 ```
 
 ## Author
