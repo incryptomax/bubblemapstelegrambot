@@ -18,6 +18,7 @@ Current Version: v1.1.0-Beta
 - ⚡ Support for multiple blockchain networks
 - 📱 Intuitive Telegram interface
 - 🔒 Admin controls and statistics
+- 📣 Mass message broadcasting system
 
 ## Supported Networks
 
@@ -93,10 +94,23 @@ STABILIZATION_TIME=25000      # Page stabilization wait time (ms)
 
 ## Bot Commands
 
+### User Commands
 - `/start` - Initialize the bot
 - `/help` - Display command list
 - `/check <address>` - Analyze token by contract address
-- `/stats` - View statistics (admin only)
+
+### Admin Commands
+- `/stats` - View detailed usage statistics and metrics
+- `/broadcast` - Send a message to all bot users (mass communication)
+
+## Admin Features
+
+The bot includes special features for administrators:
+
+- **User Statistics**: View total users, active users, and interaction data
+- **Broadcast System**: Send announcements, updates, or important information to all users
+- **Usage Metrics**: Track which tokens are being analyzed most frequently
+- **Chain Analytics**: See usage patterns across different blockchain networks
 
 ## Development
 
