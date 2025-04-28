@@ -7,6 +7,8 @@ const bubblemapsService = require('../services/bubblemapsService');
 const formatters = require('../utils/formatters');
 const marketDataService = require('../services/marketDataService');
 const screenshotService = require('../services/screenshotService');
+const tokenRatingService = require('../services/tokenRatingService');
+const statisticsService = require('../services/statisticsService');
 
 /**
  * Handle /start command
@@ -26,6 +28,13 @@ async function handleStart(bot, msg, user) {
       inline_keyboard: [
         [
           { text: 'Check a token', callback_data: 'check_token' },
+        ],
+        [
+          { text: '⭐️ Favorites', callback_data: 'favorites' },
+          { text: '🕒 Recent', callback_data: 'recent' }
+        ],
+        [
+          { text: '📊 Community Statistics', callback_data: 'back_to_stats' }
         ],
         [
           { text: 'Help', callback_data: 'help' }
@@ -241,6 +250,180 @@ async function handleBroadcast(bot, msg, user, args) {
 }
 
 /**
+ * Handle /favorites command
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} msg - Telegram message object
+ * @param {Object} user - User document
+ */
+async function handleFavorites(bot, msg, user) {
+  const chatId = msg.chat.id;
+  
+  try {
+    // Track the interaction
+    await userService.trackInteraction(user, constants.interactionTypes.VIEW_FAVORITES);
+    
+    // Get user's favorites
+    const favorites = await userService.getFavorites(user);
+    
+    if (favorites.length === 0) {
+      await bot.sendMessage(chatId, constants.messages.noFavorites, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⬅️ Back to Menu", callback_data: "start" }]
+          ]
+        }
+      });
+      return;
+    }
+    
+    // Create keyboard with favorites
+    const keyboard = {
+      inline_keyboard: favorites.map(fav => {
+        const displayName = fav.name && fav.symbol 
+          ? `${fav.name} (${fav.symbol})`
+          : `${fav.contractAddress.substring(0, 8)}...`;
+          
+        return [{
+          text: `${displayName} on ${fav.chain.toUpperCase()}`,
+          callback_data: `check_token:${fav.chain}:${fav.contractAddress}`
+        }];
+      })
+    };
+    
+    // Add a "manage favorites" button at the bottom
+    keyboard.inline_keyboard.push([
+      { text: "Manage Favorites", callback_data: "manage_favorites" }
+    ]);
+    
+    // Add a "back to menu" button
+    keyboard.inline_keyboard.push([
+      { text: "⬅️ Back to Menu", callback_data: "start" }
+    ]);
+    
+    await bot.sendMessage(chatId, constants.messages.favoritesTitle, {
+      reply_markup: keyboard
+    });
+    
+    logger.info(`User ${user.telegramId} viewed favorites`);
+  } catch (error) {
+    logger.error(`Error handling /favorites command for user ${user.telegramId}:`, error.message);
+    await bot.sendMessage(chatId, constants.messages.error);
+  }
+}
+
+/**
+ * Handle /recent command
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} msg - Telegram message object
+ * @param {Object} user - User document
+ */
+async function handleRecent(bot, msg, user) {
+  const chatId = msg.chat.id;
+  
+  try {
+    // Track the interaction
+    await userService.trackInteraction(user, constants.interactionTypes.VIEW_RECENT);
+    
+    // Get user's recently checked tokens
+    const recentTokens = await userService.getRecentlyChecked(user);
+    
+    if (recentTokens.length === 0) {
+      await bot.sendMessage(chatId, constants.messages.noRecent, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "⬅️ Back to Menu", callback_data: "start" }]
+          ]
+        }
+      });
+      return;
+    }
+    
+    // Create keyboard with recent tokens
+    const keyboard = {
+      inline_keyboard: recentTokens.map(token => {
+        const displayName = token.name && token.symbol 
+          ? `${token.name} (${token.symbol})`
+          : `${token.contractAddress.substring(0, 8)}...`;
+        
+        return [{
+          text: `${displayName} on ${token.chain.toUpperCase()}`,
+          callback_data: `check_token:${token.chain}:${token.contractAddress}`
+        }];
+      })
+    };
+    
+    // Add a "back to menu" button
+    keyboard.inline_keyboard.push([
+      { text: "⬅️ Back to Menu", callback_data: "start" }
+    ]);
+    
+    await bot.sendMessage(chatId, constants.messages.recentTitle, {
+      reply_markup: keyboard
+    });
+    
+    logger.info(`User ${user.telegramId} viewed recent tokens`);
+  } catch (error) {
+    logger.error(`Error handling /recent command for user ${user.telegramId}:`, error.message);
+    await bot.sendMessage(chatId, constants.messages.error);
+  }
+}
+
+/**
+ * Handle /topstat command
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} msg - Telegram message object
+ * @param {Object} user - User document
+ */
+async function handleTopStat(bot, msg, user) {
+  const chatId = msg.chat.id;
+  
+  try {
+    // Track the interaction
+    await userService.trackInteraction(user, constants.interactionTypes.VIEW_STATS);
+    
+    // Send processing message
+    const processingMsg = await bot.sendMessage(chatId, 'Fetching community statistics...');
+    
+    // Get public statistics
+    const stats = await statisticsService.getPublicStats();
+    
+    // Format statistics message
+    const statsMessage = formatters.formatPublicStats(stats);
+    
+    // Create keyboard with options to view specific rankings
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: `🔝 All-Time Top (${stats.topTokens.length})`, callback_data: 'view_top_tokens' },
+          { text: `⛓️ Chains (${stats.popularChains.length})`, callback_data: 'view_popular_chains' }
+        ],
+        [
+          { text: `🔥 Trending 3d (${stats.trendingTokens.length})`, callback_data: 'view_trending_tokens' }
+        ],
+        [
+          { text: "⬅️ Back to Menu", callback_data: "start" }
+        ]
+      ]
+    };
+    
+    // Delete processing message
+    await bot.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+    
+    // Send statistics
+    await bot.sendMessage(chatId, statsMessage, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard,
+      disable_web_page_preview: true // Disable web page previews for links
+    });
+    
+    logger.info(`User ${user.telegramId} viewed public statistics`);
+  } catch (error) {
+    logger.error(`Error handling /topstat command for user ${user.telegramId}:`, error.message);
+    await bot.sendMessage(chatId, constants.messages.error);
+  }
+}
+
+/**
  * Process a contract check
  * @param {Object} bot - Telegram bot instance
  * @param {number} chatId - Chat ID
@@ -318,6 +501,37 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
       // Format the token info message
       const tokenInfo = formatters.formatTokenInfo(mapData, metaData, chainToUse, marketData);
       
+      // Update recently checked tokens
+      await userService.updateRecentlyChecked(
+        user, 
+        contractAddress, 
+        chainToUse, 
+        metaData.name || '', 
+        metaData.symbol || ''
+      );
+      
+      // Check if token is in favorites
+      const isInFavorites = userService.isInFavorites(user, contractAddress, chainToUse);
+      
+      // Create favorite button
+      const favoriteButton = {
+        text: isInFavorites ? "⭐️ Remove from Favorites" : "☆ Add to Favorites",
+        callback_data: `toggle_favorite:${chainToUse}:${contractAddress}`
+      };
+      
+      // Create reply markup with favorites button
+      const replyMarkup = {
+        inline_keyboard: [
+          [{ text: 'View on BubbleMaps', url: mapUrl }],
+          [favoriteButton],
+          [
+            { text: 'Check Another Token', callback_data: 'check_token' },
+            { text: 'Recent Tokens', callback_data: 'recent' }
+          ],
+          [{ text: '🏠 Back to Menu', callback_data: 'start' }]
+        ]
+      };
+      
       // Delete processing message
       await bot.deleteMessage(chatId, processingMsg.message_id).catch(err => {
         logger.warn(`Error deleting processing message: ${err.message}`);
@@ -332,24 +546,14 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
           await bot.sendPhoto(chatId, screenshotBuffer, {
             caption: tokenInfo,
             parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: 'View on BubbleMaps', url: mapUrl }],
-                [{ text: 'Check Another Token', callback_data: 'check_token' }]
-              ]
-            }
+            reply_markup: replyMarkup
           });
         } else {
           // If screenshot failed, send text-only message
           await bot.sendMessage(chatId, tokenInfo, {
             parse_mode: 'Markdown',
             disable_web_page_preview: true,
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: 'View on BubbleMaps', url: mapUrl }],
-                [{ text: 'Check Another Token', callback_data: 'check_token' }]
-              ]
-            }
+            reply_markup: replyMarkup
           });
         }
       } catch (screenshotError) {
@@ -359,12 +563,7 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
         await bot.sendMessage(chatId, tokenInfo, {
           parse_mode: 'Markdown',
           disable_web_page_preview: true,
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'View on BubbleMaps', url: mapUrl }],
-              [{ text: 'Check Another Token', callback_data: 'check_token' }]
-            ]
-          }
+          reply_markup: replyMarkup
         });
       }
       
@@ -395,6 +594,11 @@ async function showChainSelection(bot, chatId, user) {
       })
     };
     
+    // Add a back button
+    keyboard.inline_keyboard.push([
+      { text: "⬅️ Back to Menu", callback_data: "start" }
+    ]);
+    
     // Set user state
     await userService.updateUserState(user, 'awaiting_chain');
     
@@ -417,6 +621,9 @@ module.exports = {
   handleChain,
   handleStats,
   handleBroadcast,
+  handleFavorites,
+  handleRecent,
+  handleTopStat,
   processContractCheck,
   showChainSelection
 }; 

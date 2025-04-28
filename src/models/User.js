@@ -61,7 +61,25 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  
+  // User's favorite tokens
+  favorites: [{
+    contractAddress: { type: String, required: true },
+    chain: { type: String, required: true },
+    name: { type: String },
+    symbol: { type: String },
+    addedAt: { type: Date, default: Date.now }
+  }],
+  
+  // User's recently checked tokens
+  recentlyChecked: [{
+    contractAddress: { type: String, required: true },
+    chain: { type: String, required: true },
+    name: { type: String },
+    symbol: { type: String },
+    lastCheckedAt: { type: Date, default: Date.now }
+  }]
 }, { 
   timestamps: true 
 });

@@ -34,7 +34,7 @@ async function connectToDatabase() {
 /**
  * Initialize the Telegram bot
  */
-function initializeBot() {
+async function initializeBot() {
   try {
     // Check if the token is available
     if (!config.telegram.token) {
@@ -47,6 +47,15 @@ function initializeBot() {
     
     // Set up event handlers
     setupEventHandlers();
+    
+    // Set up the commands
+    await bot.setMyCommands([
+      { command: 'start', description: 'Start the bot' },
+      { command: 'help', description: 'Show help information' },
+      { command: 'favorites', description: 'View your favorite tokens' },
+      { command: 'recent', description: 'View your recently checked tokens' },
+      { command: 'topstat', description: 'View community token statistics' }
+    ]);
     
     logger.info('Bot initialized successfully');
     return true;
@@ -122,6 +131,36 @@ function setupEventHandlers() {
     }
   });
   
+  // Handle /favorites command
+  bot.onText(/\/favorites/, async (msg) => {
+    try {
+      const user = await userService.getOrCreateUser(msg.from);
+      await commandHandler.handleFavorites(bot, msg, user);
+    } catch (error) {
+      logger.error('Error handling /favorites command:', error.message);
+    }
+  });
+  
+  // Handle /recent command
+  bot.onText(/\/recent/, async (msg) => {
+    try {
+      const user = await userService.getOrCreateUser(msg.from);
+      await commandHandler.handleRecent(bot, msg, user);
+    } catch (error) {
+      logger.error('Error handling /recent command:', error.message);
+    }
+  });
+  
+  // Handle /topstat command
+  bot.onText(/\/topstat/, async (msg) => {
+    try {
+      const user = await userService.getOrCreateUser(msg.from);
+      await commandHandler.handleTopStat(bot, msg, user);
+    } catch (error) {
+      logger.error('Error handling /topstat command:', error.message);
+    }
+  });
+  
   // Handle callback queries (inline keyboard buttons)
   bot.on('callback_query', async (callbackQuery) => {
     try {
@@ -154,33 +193,33 @@ function setupEventHandlers() {
 }
 
 /**
- * Main application startup function
+ * Main application entry point
  */
-async function startup() {
-  logger.info('Starting Bubblemaps Telegram Bot...');
-  
-  // Connect to database
-  const dbConnected = await connectToDatabase();
-  if (!dbConnected) {
-    logger.error('Failed to connect to database. Exiting.');
+async function main() {
+  try {
+    // Connect to the database
+    const dbConnected = await connectToDatabase();
+    if (!dbConnected) {
+      logger.error('Failed to connect to the database. Exiting...');
+      process.exit(1);
+    }
+    
+    // Initialize bot
+    const botInitialized = await initializeBot();
+    if (!botInitialized) {
+      logger.error('Failed to initialize bot. Exiting...');
+      process.exit(1);
+    }
+    
+    logger.info('Application started successfully');
+  } catch (error) {
+    logger.error('Error in main function:', error.message);
     process.exit(1);
   }
-  
-  // Initialize bot
-  const botInitialized = initializeBot();
-  if (!botInitialized) {
-    logger.error('Failed to initialize bot. Exiting...');
-    process.exit(1);
-  }
-  
-  logger.info('Bubblemaps Telegram Bot is running');
 }
 
 // Start the application
-startup().catch((error) => {
-  logger.error('Error starting application:', error.message);
-  process.exit(1);
-});
+main();
 
 // Handle process termination
 process.on('SIGINT', async () => {

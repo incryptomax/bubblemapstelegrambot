@@ -1,4 +1,5 @@
 const moment = require('moment');
+const constants = require('../../config/constants');
 
 /**
  * Formatting utilities for bot responses
@@ -107,6 +108,101 @@ module.exports = {
            `- Total: ${stats.tokensChecked || 0}\n` +
            `- Unique: ${stats.uniqueTokens || 0}\n\n` +
            `*Popular Chains:*\n${formatPopularChains(stats.popularChains)}`;
+  },
+
+  /**
+   * Format public statistics for display
+   * @param {Object} stats - Public statistics data
+   * @returns {string} - Formatted message
+   */
+  formatPublicStats: (stats) => {
+    if (!stats) {
+      return 'No statistics available';
+    }
+    
+    return `*📊 Community Statistics*\n\n` +
+           `*Activity:*\n` +
+           `- Total Token Checks: ${stats.totalChecks.toLocaleString()}\n\n` +
+           `*Top 3 Chains:*\n${formatTopChains(stats.popularChains, 3)}\n\n` +
+           `*Most Checked Tokens (All Time):*\n${formatTopTokens(stats.topTokens, 3)}\n\n` +
+           `*Trending Tokens (Last 3 Days):*\n${formatTopTokens(stats.trendingTokens, 3)}\n\n` +
+           `Use the buttons below to see more detailed statistics!`;
+  },
+  
+  /**
+   * Format top tokens for display
+   * @param {Array} tokens - Array of token objects
+   * @returns {string} - Formatted message
+   */
+  formatTopTokensList: (tokens) => {
+    if (!tokens || tokens.length === 0) {
+      return 'No token data available';
+    }
+    
+    let message = `*🔝 Most Checked Tokens (All Time)*\n\n`;
+    
+    tokens.forEach((token, index) => {
+      const shortAddress = `${token.token.substring(0, 6)}...${token.token.substring(token.token.length - 4)}`;
+      const lastChecked = moment(token.lastChecked).fromNow();
+      // Create hyperlink to BubbleMaps
+      const mapUrl = `${constants.endpoints.bubblemapsUrl}${token.chain}/token/${token.token}`;
+      
+      message += `*${index + 1}.* [${shortAddress}](${mapUrl}) on ${token.chain.toUpperCase()}\n` +
+                 `   👁️ ${token.checkCount} total checks • Last: ${lastChecked}\n`;
+    });
+    
+    return message;
+  },
+  
+  /**
+   * Format popular chains for display
+   * @param {Array} chains - Array of chain objects
+   * @returns {string} - Formatted message
+   */
+  formatPopularChainsList: (chains) => {
+    if (!chains || chains.length === 0) {
+      return 'No chain data available';
+    }
+    
+    let message = `*⛓️ Popular Blockchain Networks*\n\n`;
+    
+    // Calculate total checks for percentage
+    const totalChecks = chains.reduce((sum, chain) => sum + chain.checkCount, 0);
+    
+    chains.forEach((chain, index) => {
+      const percentage = ((chain.checkCount / totalChecks) * 100).toFixed(1);
+      const barLength = Math.round(percentage / 5); // 20 bars would be 100%
+      const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+      
+      message += `*${index + 1}.* ${chain.name}\n` +
+                 `   ${bar} ${percentage}% (${chain.checkCount} checks)\n`;
+    });
+    
+    return message;
+  },
+  
+  /**
+   * Format trending tokens for display
+   * @param {Array} tokens - Array of token objects
+   * @returns {string} - Formatted message
+   */
+  formatTrendingTokens: (tokens) => {
+    if (!tokens || tokens.length === 0) {
+      return 'No trending tokens data available';
+    }
+    
+    let message = `*🔥 Trending Tokens (Last 3 Days)*\n\n`;
+    
+    tokens.forEach((token, index) => {
+      const shortAddress = `${token.token.substring(0, 6)}...${token.token.substring(token.token.length - 4)}`;
+      // Create hyperlink to BubbleMaps
+      const mapUrl = `${constants.endpoints.bubblemapsUrl}${token.chain}/token/${token.token}`;
+      
+      message += `*${index + 1}.* [${shortAddress}](${mapUrl}) on ${token.chain.toUpperCase()}\n` +
+                 `   🔥 ${token.checkCount} recent checks (last 3 days)\n`;
+    });
+    
+    return message;
   }
 };
 
@@ -177,4 +273,39 @@ function formatLargeNumber(value) {
   }
   
   return value.toLocaleString('en-US');
+}
+
+/**
+ * Format top chains for brief display
+ * @param {Array} chains - Array of chain objects
+ * @param {number} limit - Number of chains to display
+ * @returns {string} - Formatted chains string
+ */
+function formatTopChains(chains, limit = 3) {
+  if (!chains || !Array.isArray(chains) || chains.length === 0) {
+    return 'None';
+  }
+  
+  return chains.slice(0, limit).map((chain, index) => 
+    `${index + 1}. ${chain.name}: ${chain.checkCount} checks`
+  ).join('\n');
+}
+
+/**
+ * Format top tokens for brief display
+ * @param {Array} tokens - Array of token objects
+ * @param {number} limit - Number of tokens to display
+ * @returns {string} - Formatted tokens string
+ */
+function formatTopTokens(tokens, limit = 3) {
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+    return 'None';
+  }
+  
+  return tokens.slice(0, limit).map((token, index) => {
+    const shortAddress = `${token.token.substring(0, 6)}...${token.token.substring(token.token.length - 4)}`;
+    // Create hyperlink to BubbleMaps
+    const mapUrl = `${constants.endpoints.bubblemapsUrl}${token.chain}/token/${token.token}`;
+    return `${index + 1}. [${shortAddress}](${mapUrl}) (${token.chain.toUpperCase()}): ${token.checkCount} checks`;
+  }).join('\n');
 } 

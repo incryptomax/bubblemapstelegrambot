@@ -16,7 +16,9 @@ Current Version: v1.1.0-Beta
 - 🗺️ Visual ownership distribution maps
 - 🔄 Automatic chain detection for all supported networks
 - ⚡ Support for multiple blockchain networks
-- 📱 Intuitive Telegram interface
+- 📱 Intuitive Telegram interface with seamless navigation
+- 📊 Community statistics for tracking popular tokens and chains
+- 🔍 Trending tokens analytics for the last 3 days
 - 🔒 Admin controls and statistics
 - 📣 Mass message broadcasting system
 - 💬 Direct contract address input in chat
@@ -71,6 +73,27 @@ The bot is designed to be simple and intuitive. There are several ways to check 
 1. **Direct Contract Input**: Simply paste any contract address directly in the chat, and the bot will automatically detect the network and return token information
 2. **Command**: Use the `/check <address>` command
 3. **Button Interface**: Click the "Check a token" button and follow the prompts
+4. **Community Statistics**: Use the `/topstat` command or click the "Community Statistics" button to view popular tokens and trends
+
+## Key Features
+
+### Token Analysis
+- Automatic blockchain detection for any contract address
+- Decentralization score and metrics visualization
+- Top holders identification and distribution analysis
+- Market data integration (price, volume, market cap)
+- Direct links to BubbleMaps for deeper analysis
+
+### Community Statistics
+- View most checked tokens across all users
+- See popular blockchain networks with percentage visualization
+- Discover trending tokens from the last 3 days
+- Click through to detailed statistics views
+
+### User Management
+- Save favorite tokens for quick access
+- View recently checked tokens history
+- Intuitive navigation with back buttons at every level
 
 ## Docker Deployment
 
@@ -145,11 +168,12 @@ tail -f logs/combined.log
 ## Bot Commands
 
 ### User Commands
-- `/start` - Initialize the bot
-- `/help` - Display command list
+- `/start` - Initialize the bot and display main menu
+- `/help` - Display command list and usage instructions
 - `/check <address>` - Analyze token by contract address
-- `/favorites` command to access saved tokens
-- `/recent` command to view recently checked tokens
+- `/favorites` - View and manage your saved tokens
+- `/recent` - View your recently checked tokens history
+- `/topstat` - Access community token statistics and trends
 
 ### Admin Commands
 - `/stats` - View detailed usage statistics and metrics
@@ -163,6 +187,22 @@ The bot includes special features for administrators:
 - **Broadcast System**: Send announcements, updates, or important information to all users
 - **Usage Metrics**: Track which tokens are being analyzed most frequently
 - **Chain Analytics**: See usage patterns across different blockchain networks
+
+## Statistics Feature
+The statistics feature provides insights into token usage across the community:
+
+- **All-Time Top Tokens**: See which tokens have been checked the most since the bot launched
+- **Popular Chains**: View blockchain networks ranked by usage with percentage visualization
+- **Trending Tokens (3 Days)**: Discover tokens gaining popularity specifically in the last 3 days
+
+The main statistics page shows a summary, and you can click on buttons to view more detailed information for each category. Each token in the statistics is hyperlinked to BubbleMaps for easy access to detailed token information.
+
+## Enhanced Navigation
+The bot features an intuitive navigation system with:
+- Back buttons at every menu level
+- Direct links between related screens
+- Logical menu hierarchy for easy exploration
+- Context-aware button labels with information counts
 
 ## Development
 
@@ -225,8 +265,14 @@ SOFTWARE.
 ```
 
 ## Acknowledgments
-
 - [BubbleMaps](https://app.bubblemaps.io/) for the token visualization data
 - [CoinGecko](https://www.coingecko.com/) for market data integration
 - [Playwright](https://playwright.dev/) for reliable web automation
 - [Telegraf](https://telegraf.js.org/) for the Telegram Bot framework
+
+### Token Information
+- Check token information by sending a contract address
+- View decentralization score, supply distribution, and top holders
+- Get market data (price, market cap, volume)
+- Automatically detects blockchain for EVM addresses
+- Supports multiple blockchains: ETH, BSC, FTM, AVAX, CRO, ARBI, POLY, BASE, SOL, SONIC
