@@ -20,6 +20,7 @@ Current Version: v1.1.0-Beta
 - 🔒 Admin controls and statistics
 - 📣 Mass message broadcasting system
 - 💬 Direct contract address input in chat
+- 📝 Comprehensive logging system
 
 ## Supported Networks
 
@@ -101,6 +102,42 @@ NAVIGATION_TIMEOUT=120000      # Page navigation timeout (ms)
 STABILIZATION_TIME=25000      # Page stabilization wait time (ms)
 ```
 
+## Logging System
+
+The bot features a comprehensive logging system that provides detailed insights into operations:
+
+### Log Levels
+
+- **DEBUG**: Detailed diagnostic information for development
+- **INFO**: General operational information about normal system activity
+- **WARN**: Warning conditions that might require attention
+- **ERROR**: Error conditions preventing normal operations
+
+### Logging Features
+
+- **Structured Logging**: JSON-formatted logs for easy parsing and analysis
+- **Rotation**: Automatic log file rotation to manage disk space
+- **User Tracking**: All user interactions are logged with unique identifiers
+- **Error Capture**: Detailed error capturing with stack traces
+- **Performance Metrics**: Timing information for critical operations
+- **Chain Detection Logs**: Detailed logs of the chain detection process
+
+### Log Directory Structure
+
+```
+logs/
+  ├── combined.log     # All log entries
+  ├── error.log        # Error-level entries only
+  ├── debug-YYYY-MM-DD.log  # Daily rotated debug logs
+  └── exceptions.log   # Uncaught exceptions
+```
+
+To view logs in real-time during development:
+
+```bash
+tail -f logs/combined.log
+```
+
 ## Bot Commands
 
 ### User Commands
@@ -140,6 +177,7 @@ The bot includes special features for administrators:
 │   ├── services/   # Business logic and API integrations
 │   ├── utils/      # Utility modules (validation, formatting, logging, etc.)
 │   └── assets/     # Fallback images and static assets for the bot
+├── logs/           # Application logs
 ├── screenshots/    # Generated screenshots for tokens
 ├── Dockerfile      # Docker configuration
 ├── docker-compose.yml # Docker Compose configuration
