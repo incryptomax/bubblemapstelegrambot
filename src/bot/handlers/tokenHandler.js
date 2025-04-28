@@ -8,37 +8,37 @@ const blockchainService = require('../../services/blockchainService');
 const { formatTokenInfo, determineBlockchain } = require('../../utils/tokenUtils');
 
 /**
- * Обработчик команды /token для получения информации о токене
- * @param {Object} ctx - Контекст Telegraf
+ * Handle /token command to get token information
+ * @param {Object} ctx - Telegraf context
  */
 async function handleTokenCommand(ctx) {
   try {
     const args = ctx.message.text.split(' ').slice(1);
     
     if (args.length === 0) {
-      return ctx.reply('Пожалуйста, укажите адрес токена. Например: /token 0x...');
+      return ctx.reply('Please specify a token address. Example: /token 0x...');
     }
     
     const tokenAddress = args[0].trim();
     let chain = args[1]?.trim() || null;
     
-    // Определяем блокчейн автоматически, если не указан
+    // Automatically determine blockchain if not specified
     if (!chain) {
       chain = determineBlockchain(tokenAddress);
       if (!chain) {
-        return ctx.reply('Не удалось определить блокчейн. Пожалуйста, укажите его явно, например: /token 0x... ethereum');
+        return ctx.reply('Could not determine blockchain. Please specify it explicitly, example: /token 0x... ethereum');
       }
     }
     
-    // Проверяем поддерживается ли блокчейн
+    // Check if blockchain is supported
     if (!blockchainService.isChainSupported(chain)) {
-      return ctx.reply(`Блокчейн ${chain} не поддерживается. Поддерживаемые блокчейны: ${blockchainService.getSupportedChains().join(', ')}`);
+      return ctx.reply(`Blockchain ${chain} is not supported. Supported blockchains: ${blockchainService.getSupportedChains().join(', ')}`);
     }
     
-    // Сообщаем пользователю, что началась загрузка информации
-    const loadingMessage = await ctx.reply(`Загружаю информацию о токене ${tokenAddress} в сети ${chain}...`);
+    // Notify user that information is being loaded
+    const loadingMessage = await ctx.reply(`Loading information for token ${tokenAddress} on ${chain}...`);
     
-    // Получаем информацию о токене
+    // Get token information
     const tokenInfo = await tokenInfoService.getTokenInfo(tokenAddress, chain);
     
     if (!tokenInfo) {
@@ -46,15 +46,15 @@ async function handleTokenCommand(ctx) {
         ctx.chat.id, 
         loadingMessage.message_id, 
         null, 
-        `Не удалось найти информацию о токене ${tokenAddress} в сети ${chain}.`
+        `Could not find information for token ${tokenAddress} on ${chain}.`
       );
       return;
     }
     
-    // Форматируем информацию о токене
+    // Format token information
     const formattedInfo = formatTokenInfo(tokenInfo, chain);
     
-    // Редактируем сообщение о загрузке, добавляя информацию о токене
+    // Update loading message with token information
     await ctx.telegram.editMessageText(
       ctx.chat.id, 
       loadingMessage.message_id, 
@@ -66,23 +66,23 @@ async function handleTokenCommand(ctx) {
         ...Markup.inlineKeyboard([
           [
             Markup.button.callback('📊 Bubble Map', `bubble_${chain}_${tokenAddress}`),
-            Markup.button.callback('⚡ Быстрый просмотр', `quick_${chain}_${tokenAddress}`)
+            Markup.button.callback('⚡ Quick View', `quick_${chain}_${tokenAddress}`)
           ],
           [
-            Markup.button.url('Открыть на BubbleMaps', bubblemapsService.generateMapUrl(tokenAddress, chain))
+            Markup.button.url('Open on BubbleMaps', bubblemapsService.generateMapUrl(tokenAddress, chain))
           ]
         ])
       }
     );
   } catch (error) {
-    logger.error(`Ошибка при обработке команды /token: ${error.message}`);
-    await ctx.reply('Произошла ошибка при получении информации о токене. Пожалуйста, попробуйте позже.');
+    logger.error(`Error handling /token command: ${error.message}`);
+    await ctx.reply('An error occurred while fetching token information. Please try again later.');
   }
 }
 
 /**
- * Обработчик команды token_chain_address из inline-кнопки
- * @param {Object} ctx - Контекст Telegraf
+ * Handle token_chain_address from inline button
+ * @param {Object} ctx - Telegraf context
  */
 async function handleTokenInfo(ctx) {
   try {
@@ -90,19 +90,19 @@ async function handleTokenInfo(ctx) {
     const [_, chain, token] = callbackData.split('_');
     
     if (!chain || !token) {
-      return ctx.answerCallbackQuery('Недостаточно данных для получения информации о токене');
+      return ctx.answerCallbackQuery('Insufficient data to fetch token information');
     }
     
-    // Проверяем поддерживается ли блокчейн
+    // Check if blockchain is supported
     if (!blockchainService.isChainSupported(chain)) {
-      return ctx.answerCallbackQuery(`Блокчейн ${chain} не поддерживается`);
+      return ctx.answerCallbackQuery(`Blockchain ${chain} is not supported`);
     }
     
-    // Сообщаем пользователю, что началась загрузка информации
-    await ctx.answerCallbackQuery('Загружаю информацию о токене...');
-    const loadingMessage = await ctx.reply(`Загружаю информацию о токене ${token} в сети ${chain}...`);
+    // Notify user that information is being loaded
+    await ctx.answerCallbackQuery('Loading token information...');
+    const loadingMessage = await ctx.reply(`Loading information for token ${token} on ${chain}...`);
     
-    // Получаем информацию о токене
+    // Get token information
     const tokenInfo = await tokenInfoService.getTokenInfo(token, chain);
     
     if (!tokenInfo) {
@@ -110,15 +110,15 @@ async function handleTokenInfo(ctx) {
         ctx.chat.id, 
         loadingMessage.message_id, 
         null, 
-        `Не удалось найти информацию о токене ${token} в сети ${chain}.`
+        `Could not find information for token ${token} on ${chain}.`
       );
       return;
     }
     
-    // Форматируем информацию о токене
+    // Format token information
     const formattedInfo = formatTokenInfo(tokenInfo, chain);
     
-    // Редактируем сообщение о загрузке, добавляя информацию о токене
+    // Update loading message with token information
     await ctx.telegram.editMessageText(
       ctx.chat.id, 
       loadingMessage.message_id, 
@@ -130,23 +130,23 @@ async function handleTokenInfo(ctx) {
         ...Markup.inlineKeyboard([
           [
             Markup.button.callback('📊 Bubble Map', `bubble_${chain}_${token}`),
-            Markup.button.callback('⚡ Быстрый просмотр', `quick_${chain}_${token}`)
+            Markup.button.callback('⚡ Quick View', `quick_${chain}_${token}`)
           ],
           [
-            Markup.button.url('Открыть на BubbleMaps', bubblemapsService.generateMapUrl(token, chain))
+            Markup.button.url('Open on BubbleMaps', bubblemapsService.generateMapUrl(token, chain))
           ]
         ])
       }
     );
   } catch (error) {
-    logger.error(`Ошибка при обработке токен-инфо: ${error.message}`);
-    await ctx.reply('Произошла ошибка при получении информации о токене. Пожалуйста, попробуйте позже.');
+    logger.error(`Error handling token info: ${error.message}`);
+    await ctx.reply('An error occurred while fetching token information. Please try again later.');
   }
 }
 
 /**
- * Обработчик для создания и отправки скриншота Bubble Map
- * @param {Object} ctx - Контекст Telegraf
+ * Handle creation and sending of Bubble Map screenshot
+ * @param {Object} ctx - Telegraf context
  */
 async function handleBubbleMap(ctx) {
   try {
@@ -154,50 +154,50 @@ async function handleBubbleMap(ctx) {
     const [_, chain, token] = callbackData.split('_');
     
     if (!chain || !token) {
-      return ctx.answerCallbackQuery('Недостаточно данных для создания скриншота');
+      return ctx.answerCallbackQuery('Insufficient data to create screenshot');
     }
     
-    // Проверяем поддерживается ли блокчейн
+    // Check if blockchain is supported
     if (!blockchainService.isChainSupported(chain)) {
-      return ctx.answerCallbackQuery(`Блокчейн ${chain} не поддерживается`);
+      return ctx.answerCallbackQuery(`Blockchain ${chain} is not supported`);
     }
     
-    // Сообщаем пользователю, что началось создание скриншота
-    await ctx.answerCallbackQuery('Создаю скриншот...');
-    const loadingMessage = await ctx.reply('⏳ Создаю скриншот Bubble Map... Это может занять до 30 секунд.');
+    // Notify user that screenshot creation has started
+    await ctx.answerCallbackQuery('Creating screenshot...');
+    const loadingMessage = await ctx.reply('⏳ Creating Bubble Map screenshot... This may take up to 30 seconds.');
     
-    // Создаем скриншот
+    // Create screenshot
     try {
       const screenshot = await screenshotService.captureMapScreenshot(token, chain);
       
-      // Отправляем скриншот пользователю
+      // Send screenshot to user
       await ctx.replyWithPhoto({ source: screenshot }, {
-        caption: `📊 Bubble Map для токена ${token} в сети ${chain}`,
+        caption: `📊 Bubble Map for token ${token} on ${chain}`,
         reply_markup: {
           inline_keyboard: [
             [
-              { text: 'Открыть на BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
+              { text: 'Open on BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
             ]
           ]
         }
       });
       
-      // Удаляем сообщение о загрузке
+      // Delete loading message
       await ctx.telegram.deleteMessage(ctx.chat.id, loadingMessage.message_id);
     } catch (screenshotError) {
-      logger.error(`Ошибка при создании скриншота: ${screenshotError.message}`);
+      logger.error(`Error creating screenshot: ${screenshotError.message}`);
       
-      // Редактируем сообщение о загрузке, сообщая об ошибке
+      // Update loading message with error
       await ctx.telegram.editMessageText(
         ctx.chat.id,
         loadingMessage.message_id,
         null,
-        `Не удалось создать скриншот Bubble Map. Вы можете просмотреть карту напрямую на сайте BubbleMaps:`,
+        `Could not create Bubble Map screenshot. You can view the map directly on BubbleMaps:`,
         {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: 'Открыть на BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
+                { text: 'Open on BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
               ]
             ]
           }
@@ -205,14 +205,14 @@ async function handleBubbleMap(ctx) {
       );
     }
   } catch (error) {
-    logger.error(`Ошибка при создании Bubble Map: ${error.message}`);
-    await ctx.reply('Произошла ошибка при создании Bubble Map. Пожалуйста, попробуйте позже.');
+    logger.error(`Error creating Bubble Map: ${error.message}`);
+    await ctx.reply('An error occurred while creating Bubble Map. Please try again later.');
   }
 }
 
 /**
- * Обработчик для создания и отправки быстрого скриншота Bubble Map
- * @param {Object} ctx - Контекст Telegraf
+ * Handle creation and sending of quick Bubble Map screenshot
+ * @param {Object} ctx - Telegraf context
  */
 async function handleQuickBubbleMap(ctx) {
   try {
@@ -220,39 +220,39 @@ async function handleQuickBubbleMap(ctx) {
     const [_, chain, token] = callbackData.split('_');
     
     if (!chain || !token) {
-      return ctx.answerCallbackQuery('Недостаточно данных для создания скриншота');
+      return ctx.answerCallbackQuery('Insufficient data to create screenshot');
     }
     
-    // Проверяем поддерживается ли блокчейн
+    // Check if blockchain is supported
     if (!blockchainService.isChainSupported(chain)) {
-      return ctx.answerCallbackQuery(`Блокчейн ${chain} не поддерживается`);
+      return ctx.answerCallbackQuery(`Blockchain ${chain} is not supported`);
     }
     
-    // Сообщаем пользователю, что началось создание скриншота
-    await ctx.answerCallbackQuery('Создаю быстрый скриншот...');
-    const loadingMessage = await ctx.reply('⏳ Создаю быстрый скриншот Bubble Map... Это займет менее 10 секунд.');
+    // Notify user that screenshot creation has started
+    await ctx.answerCallbackQuery('Creating quick screenshot...');
+    const loadingMessage = await ctx.reply('⏳ Creating quick Bubble Map screenshot... This will take less than 10 seconds.');
     
-    // Создаем быстрый скриншот
+    // Create quick screenshot
     const screenshot = await quickScreenshotService.captureQuickScreenshot(token, chain);
     
-    // Отправляем скриншот пользователю
+    // Send screenshot to user
     await ctx.replyWithPhoto({ source: screenshot }, {
-      caption: `📊 Bubble Map для токена ${token} в сети ${chain} (быстрый режим)`,
+      caption: `📊 Bubble Map for token ${token} on ${chain} (quick view)`,
       reply_markup: {
         inline_keyboard: [
           [
-            { text: 'Подробный анализ', callback_data: `bubble_${chain}_${token}` },
-            { text: 'Открыть на BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
+            { text: 'Detailed Analysis', callback_data: `bubble_${chain}_${token}` },
+            { text: 'Open on BubbleMaps', url: bubblemapsService.generateMapUrl(token, chain) }
           ]
         ]
       }
     });
     
-    // Удаляем сообщение о загрузке
+    // Delete loading message
     await ctx.telegram.deleteMessage(ctx.chat.id, loadingMessage.message_id);
   } catch (error) {
-    logger.error(`Ошибка при создании быстрого скриншота: ${error.message}`);
-    await ctx.reply('Произошла ошибка при создании быстрого скриншота. Пожалуйста, попробуйте позже.');
+    logger.error(`Error creating quick Bubble Map: ${error.message}`);
+    await ctx.reply('An error occurred while creating quick Bubble Map. Please try again later.');
   }
 }
 
