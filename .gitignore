@@ -1,43 +1,9 @@
 # Dependencies
 node_modules/
 package-lock.json
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-
-# Build output
-dist/
-build/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Documentation
-docs/_build/
-docs/api/
-
-# Testing
-coverage/
-.nyc_output/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
 
 # Scripts and tests
 scripts/
@@ -45,27 +11,53 @@ test/
 *.test.js
 *.spec.js
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # OS files
+.DS_Store
+.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+Thumbs.db
 
 # IDE files
+.idea/
+.vscode/
 *.swp
 *.swo
 
 # Logs
+logs/
 *.log
+
+# Build output
+dist/
+build/
 
 # Screenshots
 screenshots/
+
+# Documentation
+.docs/
 
 # Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
+
+# Testing
+coverage/
+
+# Temporary files
+*~
+tmp/
+temp/
 
 # Docker
 .docker/
