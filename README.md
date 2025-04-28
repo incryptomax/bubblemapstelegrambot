@@ -2,8 +2,6 @@
 
 A Telegram bot that provides token information and bubble maps visualization from BubbleMaps. Get instant access to token ownership distribution, market data, and decentralization metrics directly in Telegram.
 
-## Live Bot
-
 You can find the bot on Telegram: [Bubble Maps Telegram Bot](https://t.me/bubblemapstelegrambot)
 
 Current Version: Alpha
