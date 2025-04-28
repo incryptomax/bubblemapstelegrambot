@@ -42,6 +42,9 @@ build/
 # Screenshots
 screenshots/
 
+# Documentation
+.docs/
+
 # Runtime data
 pids
 *.pid
