@@ -21,6 +21,10 @@ Current Version: v1.1.0-Beta
 - 📣 Mass message broadcasting system
 - 💬 Direct contract address input in chat
 - 📝 Comprehensive logging system
+- ⭐️ Favorites system to save and quickly access tokens
+- 🕒 Recently viewed tokens history
+- 🚀 Optimized performance for faster token lookups
+
 
 ## Supported Networks
 
@@ -144,6 +148,8 @@ tail -f logs/combined.log
 - `/start` - Initialize the bot
 - `/help` - Display command list
 - `/check <address>` - Analyze token by contract address
+- `/favorites` command to access saved tokens
+- `/recent` command to view recently checked tokens
 
 ### Admin Commands
 - `/stats` - View detailed usage statistics and metrics
