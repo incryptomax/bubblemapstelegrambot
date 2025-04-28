@@ -19,6 +19,7 @@ Current Version: v1.1.0-Beta
 - 📱 Intuitive Telegram interface
 - 🔒 Admin controls and statistics
 - 📣 Mass message broadcasting system
+- 💬 Direct contract address input in chat
 
 ## Supported Networks
 
@@ -57,6 +58,14 @@ cp .env.example .env
 ```bash
 npm start
 ```
+
+## How to Use
+
+The bot is designed to be simple and intuitive. There are several ways to check tokens:
+
+1. **Direct Contract Input**: Simply paste any contract address directly in the chat, and the bot will automatically detect the network and return token information
+2. **Command**: Use the `/check <address>` command
+3. **Button Interface**: Click the "Check a token" button and follow the prompts
 
 ## Docker Deployment
 
