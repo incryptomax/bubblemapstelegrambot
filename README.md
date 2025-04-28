@@ -4,11 +4,7 @@ A Telegram bot that provides token information and bubble maps visualization fro
 
 ## Live Bot
 
-<<<<<<< HEAD
 You can find the bot on Telegram: [Bubble Maps Telegram Bot](https://t.me/bubblemapstelegrambot)
-=======
-You can find the bot on Telegram: [BubblemapsBot](https://t.me/bubblemapstelegrambot)
->>>>>>> origin/master
 
 Current Version: Alpha
 
