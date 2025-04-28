@@ -1,6 +1,6 @@
 {
   "name": "bubblemaps-telegram-checker",
-  "version": "1.0.0",
+  "version": "0.2.0-alpha",
   "description": "Telegram bot for checking token information using Bubblemaps API",
   "main": "src/index.js",
   "scripts": {

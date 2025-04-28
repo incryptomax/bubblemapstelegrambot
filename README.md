@@ -6,7 +6,7 @@ A Telegram bot that provides token information and bubble maps visualization fro
 
 You can find the bot on Telegram: [Bubble Maps Telegram Bot](https://t.me/bubblemapstelegrambot)
 
-Current Version: Alpha
+Current Version: v0.2.0-Alpha
 
 ## Features
 
@@ -14,23 +14,23 @@ Current Version: Alpha
 - 📊 Real-time market data (price, volume, market cap)
 - 📈 Decentralization score and metrics
 - 🗺️ Visual ownership distribution maps
-- 🔄 Automatic chain detection for Solana
+- 🔄 Automatic chain detection for all supported networks
 - ⚡ Support for multiple blockchain networks
 - 📱 Intuitive Telegram interface
 - 🔒 Admin controls and statistics
 
 ## Supported Networks
 
-- Ethereum (ETH)
-- BNB Smart Chain (BSC)
-- Fantom (FTM)
-- Avalanche (AVAX)
-- Cronos (CRO)
-- Arbitrum (ARBI)
-- Polygon (POLY)
-- Base (BASE)
+- Ethereum (ETH) - Auto-detected
+- BNB Smart Chain (BSC) - Auto-detected
+- Fantom (FTM) - Auto-detected
+- Avalanche (AVAX) - Auto-detected
+- Cronos (CRO) - Auto-detected
+- Arbitrum (ARBI) - Auto-detected
+- Polygon (POLY) - Auto-detected
+- Base (BASE) - Auto-detected
 - Solana (SOL) - Auto-detected
-- Sonic (SONIC)
+- Sonic (SONIC) - Auto-detected
 
 ## Quick Start
 
@@ -96,7 +96,6 @@ STABILIZATION_TIME=25000      # Page stabilization wait time (ms)
 - `/start` - Initialize the bot
 - `/help` - Display command list
 - `/check <address>` - Analyze token by contract address
-- `/chain <network>` - Set preferred blockchain
 - `/stats` - View statistics (admin only)
 
 ## Development
@@ -159,4 +158,4 @@ SOFTWARE.
 - [BubbleMaps](https://app.bubblemaps.io/) for the token visualization data
 - [CoinGecko](https://www.coingecko.com/) for market data integration
 - [Playwright](https://playwright.dev/) for reliable web automation
-- [Telegraf](https://telegraf.js.org/) for the Telegram Bot framework 
+- [Telegraf](https://telegraf.js.org/) for the Telegram Bot framework

@@ -10,9 +10,8 @@ module.exports = {
           "Send me a token contract address to check its information, or use these commands:\n\n" +
           "/start - Start or restart the bot\n" +
           "/help - Show this help message\n" +
-          "/check <contract_address> - Check a specific token\n" +
-          "/chain <chain_name> - Set default chain (eth, bsc, etc.)\n\n" +
-          "Available chains: eth, bsc, ftm, avax, cro, arbi, poly, base, sol, sonic",
+          "/check `<contract_address>` - Check a specific token\n\n" +
+          "The bot automatically detects which blockchain your token belongs to, supporting: ETH, BSC, FTM, AVAX, CRO, ARBI, POLY, BASE, SOL, SONIC.",
     invalidContract: "❌ Invalid contract address. Please check the address and try again.",
     processing: "⏳ Processing your request...",
     error: "❌ An error occurred. Please try again later.",

@@ -1,4 +1,6 @@
 const constants = require('../../config/constants');
+const bubblemapsService = require('../services/bubblemapsService');
+const logger = require('./logger');
 
 /**
  * Validation utilities
@@ -41,6 +43,50 @@ module.exports = {
     
     // Default to user's preferred chain for EVM addresses
     return constants.defaultChain;
+  },
+  
+  /**
+   * Detect chain for EVM address by checking multiple chains in parallel
+   * @param {string} address - Contract address (EVM format)
+   * @returns {Promise<string>} - Detected chain ID or default chain if detection fails
+   */
+  detectEVMChain: async (address) => {
+    // Only process EVM addresses
+    if (!address || typeof address !== 'string' || !address.startsWith('0x')) {
+      return constants.defaultChain;
+    }
+    
+    try {
+      logger.info(`Attempting to detect chain for EVM address: ${address}`);
+      
+      // List of chains to check (excluding Solana)
+      const chainsToCheck = constants.chains
+        .filter(chain => chain.id !== 'sol')
+        .map(chain => chain.id);
+      
+      // Check all chains in parallel
+      const results = await Promise.allSettled(
+        chainsToCheck.map(chain => 
+          bubblemapsService.validateContract(address, chain)
+        )
+      );
+      
+      // Find the first chain that returns valid data
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'fulfilled' && results[i].value === true) {
+          const detectedChain = chainsToCheck[i];
+          logger.info(`Chain detected for ${address}: ${detectedChain}`);
+          return detectedChain;
+        }
+      }
+      
+      // If no chain is detected, log and return default
+      logger.info(`No chain detected for ${address}, using default: ${constants.defaultChain}`);
+      return constants.defaultChain;
+    } catch (error) {
+      logger.error(`Error in detectEVMChain for ${address}:`, error.message);
+      return constants.defaultChain;
+    }
   },
   
   /**

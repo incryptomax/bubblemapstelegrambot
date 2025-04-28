@@ -27,10 +27,6 @@ async function handleCallback(bot, callbackQuery, user) {
       await handleHelpCallback(bot, chatId, user);
     } else if (data === 'check_token') {
       await handleCheckTokenCallback(bot, chatId, user);
-    } else if (data === 'change_chain') {
-      await handleChangeChainCallback(bot, chatId, user);
-    } else if (data === 'cancel_broadcast') {
-      await handleCancelBroadcastCallback(bot, chatId, messageId, user);
     } else if (data === 'admin_broadcast') {
       await adminHandler.handleBroadcast(bot, callbackQuery.message, user);
     } else if (data === 'admin_stats') {
@@ -42,7 +38,7 @@ async function handleCallback(bot, callbackQuery, user) {
       logger.warn(`Unknown callback data from user ${user.telegramId}: ${data}`);
     }
   } catch (error) {
-    logger.error(`Error handling callback for user ${user.telegramId}:`, error.message);
+    logger.error(`Error handling callback for user ${user.telegramId}: ${error.message}`);
     await bot.sendMessage(chatId, constants.messages.error);
   }
 }
@@ -65,8 +61,14 @@ async function handleHelpCallback(bot, chatId, user) {
     
     logger.info(`User ${user.telegramId} requested help via callback`);
   } catch (error) {
-    logger.error(`Error handling help callback for user ${user.telegramId}:`, error.message);
-    throw error;
+    logger.error(`Error handling help callback for user ${user.telegramId}: ${error.message}`);
+    
+    // Try to send a simplified message if the markdown parsing fails
+    try {
+      await bot.sendMessage(chatId, "Sorry, there was an error displaying the help message. Please try using the /help command instead.");
+    } catch (secondError) {
+      logger.error(`Failed to send error message to user ${user.telegramId}: ${secondError.message}`);
+    }
   }
 }
 
@@ -86,26 +88,14 @@ async function handleCheckTokenCallback(bot, chatId, user) {
     
     logger.info(`User ${user.telegramId} initiated token check via callback`);
   } catch (error) {
-    logger.error(`Error handling check_token callback for user ${user.telegramId}:`, error.message);
-    throw error;
-  }
-}
-
-/**
- * Handle change chain callback
- * @param {Object} bot - Telegram bot instance
- * @param {number} chatId - Chat ID
- * @param {Object} user - User document
- */
-async function handleChangeChainCallback(bot, chatId, user) {
-  try {
-    // Show chain selection
-    await commandHandler.showChainSelection(bot, chatId, user);
+    logger.error(`Error handling check_token callback for user ${user.telegramId}: ${error.message}`);
     
-    logger.info(`User ${user.telegramId} initiated chain change via callback`);
-  } catch (error) {
-    logger.error(`Error handling change_chain callback for user ${user.telegramId}:`, error.message);
-    throw error;
+    // Send a simple error message
+    try {
+      await bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
+    } catch (secondError) {
+      logger.error(`Failed to send error message to user ${user.telegramId}: ${secondError.message}`);
+    }
   }
 }
 
@@ -139,39 +129,14 @@ async function handleSetChainCallback(bot, chatId, user, chain) {
     
     logger.info(`User ${user.telegramId} changed chain to ${chain} via callback`);
   } catch (error) {
-    logger.error(`Error handling set_chain callback for user ${user.telegramId}:`, error.message);
-    throw error;
-  }
-}
-
-/**
- * Handle cancel broadcast callback
- * @param {Object} bot - Telegram bot instance
- * @param {number} chatId - Chat ID
- * @param {number} messageId - Message ID
- * @param {Object} user - User document
- */
-async function handleCancelBroadcastCallback(bot, chatId, messageId, user) {
-  try {
-    // Check if user is admin
-    if (!user.isAdmin) {
-      await bot.sendMessage(chatId, constants.messages.adminOnly);
-      return;
+    logger.error(`Error handling set_chain callback for user ${user.telegramId}: ${error.message}`);
+    
+    // Send a simple error message
+    try {
+      await bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
+    } catch (secondError) {
+      logger.error(`Failed to send error message to user ${user.telegramId}: ${secondError.message}`);
     }
-    
-    // Reset user state
-    await userService.updateUserState(user, 'idle');
-    
-    // Update the message
-    await bot.editMessageText(constants.messages.broadcastCancelled, {
-      chat_id: chatId,
-      message_id: messageId
-    });
-    
-    logger.info(`Admin ${user.telegramId} cancelled broadcast`);
-  } catch (error) {
-    logger.error(`Error handling cancel_broadcast callback for user ${user.telegramId}:`, error.message);
-    throw error;
   }
 }
 

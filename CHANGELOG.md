@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.0-alpha] - 2024-04-27
+
+### Added
+- Automatic chain detection for all supported networks
+- Multi-chain contract validation for EVM addresses
+- Improved user experience with live chain detection feedback
+
+### Changed
+- Updated chain detection to check contract validity across multiple chains
+- Enhanced processing message flow during chain detection
+- Updated documentation to reflect new automatic detection capabilities
+- Simplified UI by removing the chain selection button
+- Removed unnecessary reply buttons for cleaner interface
+
+### Removed
+- Chain selection button from the main menu
+- Cancel button from broadcast message interface
+- `/chain` command as it's no longer needed with automatic detection
+
 ## [v0.1.0-alpha] - 2024-03-21
 
 ### Added

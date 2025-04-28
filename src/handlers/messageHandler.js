@@ -61,12 +61,14 @@ async function handleAwaitingContract(bot, msg, user, text) {
     // Reset user state
     await userService.updateUserState(user, 'idle');
     
-    // Automatically detect chain for Solana addresses
-    const detectedChain = validation.detectChainFromAddress(contractAddress);
-    const chainToUse = detectedChain === 'sol' ? 'sol' : user.preferredChain;
+    // Send processing message for EVM addresses as chain detection takes time
+    let processingMsg = null;
+    if (contractAddress.startsWith('0x')) {
+      processingMsg = await bot.sendMessage(chatId, 'Detecting chain for this address...');
+    }
     
     // Process the contract check
-    await commandHandler.processContractCheck(bot, chatId, user, contractAddress, chainToUse);
+    await commandHandler.processContractCheck(bot, chatId, user, contractAddress, null, processingMsg);
   } catch (error) {
     logger.error(`Error handling awaiting_contract state for user ${user.telegramId}:`, error.message);
     await bot.sendMessage(chatId, constants.messages.error);
@@ -203,20 +205,21 @@ async function handleDefaultState(bot, msg, user, text) {
     const contractAddress = validation.extractContractAddress(text);
     
     if (contractAddress) {
-      // Automatically detect chain for Solana addresses
-      const detectedChain = validation.detectChainFromAddress(contractAddress);
-      const chainToUse = detectedChain === 'sol' ? 'sol' : user.preferredChain;
+      // Send processing message for EVM addresses as chain detection takes time
+      let processingMsg = null;
+      if (contractAddress.startsWith('0x')) {
+        processingMsg = await bot.sendMessage(chatId, 'Detecting chain for this address...');
+      }
       
-      // Process the contract check
-      await commandHandler.processContractCheck(bot, chatId, user, contractAddress, chainToUse);
+      // Process the contract check with auto-detection
+      await commandHandler.processContractCheck(bot, chatId, user, contractAddress, null, processingMsg);
     } else {
       // User sent something else, provide guidance
       await bot.sendMessage(chatId, "I couldn't identify a contract address in your message. Please send a valid contract address or use /help to see available commands.", {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: 'Check a token', callback_data: 'check_token' },
-              { text: 'Change chain', callback_data: 'change_chain' }
+              { text: 'Check a token', callback_data: 'check_token' }
             ],
             [
               { text: 'Help', callback_data: 'help' }

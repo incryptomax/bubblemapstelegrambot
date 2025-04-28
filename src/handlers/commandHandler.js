@@ -26,7 +26,6 @@ async function handleStart(bot, msg, user) {
       inline_keyboard: [
         [
           { text: 'Check a token', callback_data: 'check_token' },
-          { text: 'Change chain', callback_data: 'change_chain' }
         ],
         [
           { text: 'Help', callback_data: 'help' }
@@ -66,8 +65,27 @@ async function handleHelp(bot, msg, user) {
     
     logger.info(`User ${user.telegramId} requested help`);
   } catch (error) {
-    logger.error(`Error handling /help command for user ${user.telegramId}:`, error.message);
-    await bot.sendMessage(chatId, constants.messages.error);
+    logger.error(`Error handling /help command for user ${user.telegramId}: ${error.message}`);
+    
+    // Try to send a plain text version if Markdown parsing fails
+    try {
+      // Create a plain text version of the help message by removing Markdown
+      const plainHelp = constants.messages.help
+        .replace(/\*/g, '')  // Remove asterisks
+        .replace(/`/g, '');  // Remove backticks
+      
+      await bot.sendMessage(chatId, plainHelp);
+    } catch (secondError) {
+      // If even that fails, send a very simple message
+      try {
+        await bot.sendMessage(chatId, 
+          "🔍 Bubblemaps Token Checker Help\n\n" +
+          "Send me a token contract address to check its information.\n" +
+          "Commands: /start, /help, /check");
+      } catch (finalError) {
+        logger.error(`Failed to send any help message to user ${user.telegramId}: ${finalError.message}`);
+      }
+    }
   }
 }
 
@@ -93,12 +111,14 @@ async function handleCheck(bot, msg, user, args) {
       return;
     }
     
-    // Automatically detect chain for Solana addresses
-    const detectedChain = validation.detectChainFromAddress(contractAddress);
-    const chainToUse = detectedChain === 'sol' ? 'sol' : user.preferredChain;
+    // Send processing message for EVM addresses as chain detection takes time
+    let processingMsg = null;
+    if (contractAddress.startsWith('0x')) {
+      processingMsg = await bot.sendMessage(chatId, 'Detecting chain for this address...');
+    }
     
     // Process the contract check
-    await processContractCheck(bot, chatId, user, contractAddress, chainToUse);
+    await processContractCheck(bot, chatId, user, contractAddress, null, processingMsg);
   } catch (error) {
     logger.error(`Error handling /check command for user ${user.telegramId}:`, error.message);
     await bot.sendMessage(chatId, constants.messages.error);
@@ -210,14 +230,8 @@ async function handleBroadcast(bot, msg, user, args) {
     // Set user state to awaiting broadcast message
     await userService.updateUserState(user, 'awaiting_broadcast_message');
     
-    // Send instruction
-    await bot.sendMessage(chatId, constants.messages.broadcastInit, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Cancel', callback_data: 'cancel_broadcast' }]
-        ]
-      }
-    });
+    // Send instruction without the cancel button
+    await bot.sendMessage(chatId, constants.messages.broadcastInit);
     
     logger.info(`Admin ${user.telegramId} initiated broadcast`);
   } catch (error) {
@@ -232,27 +246,57 @@ async function handleBroadcast(bot, msg, user, args) {
  * @param {number} chatId - Chat ID
  * @param {Object} user - User document
  * @param {string} contractAddress - Contract address
- * @param {string} chain - Chain ID
+ * @param {string} chain - Chain ID (optional, will be auto-detected if null)
+ * @param {Object} processingMsg - Processing message object (optional)
  */
-async function processContractCheck(bot, chatId, user, contractAddress, chain) {
+async function processContractCheck(bot, chatId, user, contractAddress, chain, processingMsg = null) {
   try {
     // Validate contract address
     if (!validation.isValidContractAddress(contractAddress)) {
+      if (processingMsg) await bot.deleteMessage(chatId, processingMsg.message_id);
       await bot.sendMessage(chatId, constants.messages.invalidContract);
       return;
     }
     
-    // Send processing message
-    const processingMsg = await bot.sendMessage(chatId, constants.messages.processing);
+    // Auto-detect chain if not provided
+    let chainToUse = chain;
+    let isAutoDetected = false;
+    
+    if (!chainToUse) {
+      if (contractAddress.startsWith('0x')) {
+        // For EVM addresses, use the multi-chain detection
+        chainToUse = await validation.detectEVMChain(contractAddress);
+        isAutoDetected = true;
+      } else {
+        // For Solana addresses
+        chainToUse = 'sol';
+        isAutoDetected = true;
+      }
+    }
+    
+    // If chain was null and we couldn't detect, use user's preferred chain
+    if (!chainToUse) {
+      chainToUse = user.preferredChain;
+    }
+    
+    // Update processing message or create one if not provided
+    if (processingMsg) {
+      await bot.editMessageText(constants.messages.processing, {
+        chat_id: chatId,
+        message_id: processingMsg.message_id
+      });
+    } else {
+      processingMsg = await bot.sendMessage(chatId, constants.messages.processing);
+    }
     
     // Track the interaction
     await userService.trackInteraction(user, constants.interactionTypes.CHECK_TOKEN, {
       token: contractAddress,
-      chain
+      chain: chainToUse
     });
     
     // Check if token is available in Bubblemaps
-    const isValid = await bubblemapsService.validateContract(contractAddress, chain);
+    const isValid = await bubblemapsService.validateContract(contractAddress, chainToUse);
     
     if (!isValid) {
       await bot.deleteMessage(chatId, processingMsg.message_id);
@@ -263,16 +307,16 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain) {
     try {
       // Fetch token data and market data first
       const [mapData, metaData, marketData] = await Promise.all([
-        bubblemapsService.getTokenMapData(contractAddress, chain),
-        bubblemapsService.getTokenMetadata(contractAddress, chain),
-        marketDataService.getTokenMarketData(contractAddress, chain)
+        bubblemapsService.getTokenMapData(contractAddress, chainToUse),
+        bubblemapsService.getTokenMetadata(contractAddress, chainToUse),
+        marketDataService.getTokenMarketData(contractAddress, chainToUse)
       ]);
       
       // Generate the bubble map URL
-      const mapUrl = bubblemapsService.generateMapUrl(contractAddress, chain);
+      const mapUrl = bubblemapsService.generateMapUrl(contractAddress, chainToUse);
       
       // Format the token info message
-      const tokenInfo = formatters.formatTokenInfo(mapData, metaData, chain, marketData);
+      const tokenInfo = formatters.formatTokenInfo(mapData, metaData, chainToUse, marketData);
       
       // Delete processing message
       await bot.deleteMessage(chatId, processingMsg.message_id).catch(err => {
@@ -281,7 +325,7 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain) {
 
       try {
         // Get the screenshot using the screenshot service
-        const screenshotBuffer = await screenshotService.captureMapScreenshot(contractAddress, chain);
+        const screenshotBuffer = await screenshotService.captureMapScreenshot(contractAddress, chainToUse);
         
         if (screenshotBuffer) {
           // Send the screenshot with token info as caption
@@ -324,7 +368,7 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain) {
         });
       }
       
-      logger.info(`User ${user.telegramId} checked token ${contractAddress} on chain ${chain}`);
+      logger.info(`User ${user.telegramId} checked token ${contractAddress} on chain ${chainToUse}`);
     } catch (dataError) {
       logger.error(`Error fetching token data: ${dataError.message}`);
       await bot.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
