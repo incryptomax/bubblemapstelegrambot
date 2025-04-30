@@ -2,8 +2,15 @@
  * Token Rating Service - Calculates token health metrics based on BubbleMaps data
  */
 const logger = require('../utils/logger');
+const TokenRating = require('../models/TokenRating');
+const User = require('../models/User');
+const Interaction = require('../models/Interaction');
+const constants = require('../../config/constants');
 
-class TokenRatingService {
+/**
+ * Service for handling token ratings (likes/dislikes)
+ */
+const tokenRatingService = {
   /**
    * Calculate token health rating
    * @param {Object} mapData - BubbleMaps token map data
@@ -54,7 +61,7 @@ class TokenRatingService {
       logger.error('Error calculating token health rating:', error.message);
       return null;
     }
-  }
+  },
 
   /**
    * Calculate decentralization score based on distribution of tokens
@@ -94,7 +101,7 @@ class TokenRatingService {
       logger.error('Error calculating decentralization score:', error.message);
       return 0;
     }
-  }
+  },
 
   /**
    * Calculate holder stability score (placeholder - actual implementation would require historical data)
@@ -131,7 +138,7 @@ class TokenRatingService {
       logger.error('Error calculating holder stability score:', error.message);
       return 0;
     }
-  }
+  },
 
   /**
    * Calculate risk concentration score
@@ -162,7 +169,7 @@ class TokenRatingService {
       logger.error('Error calculating risk concentration score:', error.message);
       return 0;
     }
-  }
+  },
 
   /**
    * Calculate address activity score
@@ -197,7 +204,7 @@ class TokenRatingService {
       logger.error('Error calculating address activity score:', error.message);
       return 0;
     }
-  }
+  },
 
   /**
    * Calculate overall health score as weighted average of component scores
@@ -230,7 +237,7 @@ class TokenRatingService {
     );
     
     return Math.round(weightedScore);
-  }
+  },
 
   /**
    * Calculate Gini coefficient for token distribution
@@ -258,7 +265,7 @@ class TokenRatingService {
     // Calculate Gini coefficient
     if (sumOfValues === 0) return 0;
     return sumOfAbsoluteDifferences / (2 * totalNodes * sumOfValues);
-  }
+  },
 
   /**
    * Calculate percentage of tokens held by top N holders
@@ -276,7 +283,7 @@ class TokenRatingService {
     
     if (totalValue === 0) return 0;
     return (topNTotal / totalValue) * 100;
-  }
+  },
 
   /**
    * Get rating label based on health score
@@ -290,7 +297,185 @@ class TokenRatingService {
     if (score >= 40) return 'Risky';
     if (score >= 20) return 'Poor';
     return 'Critical';
-  }
-}
+  },
 
-module.exports = new TokenRatingService(); 
+  /**
+   * Get token rating by contract address and chain
+   * @param {string} contractAddress - Token contract address
+   * @param {string} chain - Blockchain chain
+   * @returns {Promise<Object>} - Token rating object
+   */
+  async getTokenRating(contractAddress, chain) {
+    try {
+      const rating = await TokenRating.findOne({ contractAddress, chain });
+      return rating;
+    } catch (error) {
+      logger.error(`Error getting token rating: ${error.message}`);
+      return null;
+    }
+  },
+
+  /**
+   * Toggle like for a token
+   * @param {Object} user - User document
+   * @param {string} contractAddress - Token contract address
+   * @param {string} chain - Blockchain chain
+   * @param {string} name - Token name (optional)
+   * @param {string} symbol - Token symbol (optional)
+   * @returns {Promise<Object>} - Updated token rating
+   */
+  async toggleLike(user, contractAddress, chain, name = '', symbol = '') {
+    try {
+      // Get or create token rating
+      let tokenRating = await TokenRating.findOrCreate(contractAddress, chain, name, symbol);
+      
+      // Check if user has already liked the token
+      const hasLiked = tokenRating.likedBy.some(userId => userId.equals(user._id));
+      
+      // Check if user has disliked the token
+      const hasDisliked = tokenRating.dislikedBy.some(userId => userId.equals(user._id));
+      
+      // Handle rating logic
+      if (hasLiked) {
+        // User already liked it, so remove the like
+        tokenRating.likedBy = tokenRating.likedBy.filter(userId => !userId.equals(user._id));
+        tokenRating.likesCount--;
+        
+        // Log interaction
+        await Interaction.log(user, constants.interactionTypes.UNLIKE_TOKEN, {
+          contract: contractAddress,
+          chain: chain
+        });
+      } else {
+        // Add like
+        tokenRating.likedBy.push(user._id);
+        tokenRating.likesCount++;
+        
+        // If user had disliked, remove the dislike
+        if (hasDisliked) {
+          tokenRating.dislikedBy = tokenRating.dislikedBy.filter(userId => !userId.equals(user._id));
+          tokenRating.dislikesCount--;
+        }
+        
+        // Log interaction
+        await Interaction.log(user, constants.interactionTypes.LIKE_TOKEN, {
+          contract: contractAddress,
+          chain: chain
+        });
+      }
+      
+      tokenRating.lastUpdated = Date.now();
+      await tokenRating.save();
+      
+      return tokenRating;
+    } catch (error) {
+      logger.error(`Error toggling like for token: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Toggle dislike for a token
+   * @param {Object} user - User document
+   * @param {string} contractAddress - Token contract address
+   * @param {string} chain - Blockchain chain
+   * @param {string} name - Token name (optional)
+   * @param {string} symbol - Token symbol (optional)
+   * @returns {Promise<Object>} - Updated token rating
+   */
+  async toggleDislike(user, contractAddress, chain, name = '', symbol = '') {
+    try {
+      // Get or create token rating
+      let tokenRating = await TokenRating.findOrCreate(contractAddress, chain, name, symbol);
+      
+      // Check if user has already disliked the token
+      const hasDisliked = tokenRating.dislikedBy.some(userId => userId.equals(user._id));
+      
+      // Check if user has liked the token
+      const hasLiked = tokenRating.likedBy.some(userId => userId.equals(user._id));
+      
+      // Handle rating logic
+      if (hasDisliked) {
+        // User already disliked it, so remove the dislike
+        tokenRating.dislikedBy = tokenRating.dislikedBy.filter(userId => !userId.equals(user._id));
+        tokenRating.dislikesCount--;
+        
+        // Log interaction
+        await Interaction.log(user, constants.interactionTypes.UNDISLIKE_TOKEN, {
+          contract: contractAddress,
+          chain: chain
+        });
+      } else {
+        // Add dislike
+        tokenRating.dislikedBy.push(user._id);
+        tokenRating.dislikesCount++;
+        
+        // If user had liked, remove the like
+        if (hasLiked) {
+          tokenRating.likedBy = tokenRating.likedBy.filter(userId => !userId.equals(user._id));
+          tokenRating.likesCount--;
+        }
+        
+        // Log interaction
+        await Interaction.log(user, constants.interactionTypes.DISLIKE_TOKEN, {
+          contract: contractAddress,
+          chain: chain
+        });
+      }
+      
+      tokenRating.lastUpdated = Date.now();
+      await tokenRating.save();
+      
+      return tokenRating;
+    } catch (error) {
+      logger.error(`Error toggling dislike for token: ${error.message}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Get user's rating for a token
+   * @param {Object} user - User document
+   * @param {string} contractAddress - Token contract address
+   * @param {string} chain - Blockchain chain
+   * @returns {Promise<string|null>} - 'like', 'dislike', or null
+   */
+  async getUserRatingForToken(user, contractAddress, chain) {
+    try {
+      const tokenRating = await TokenRating.findOne({ contractAddress, chain });
+      
+      if (!tokenRating) {
+        return null;
+      }
+      
+      if (tokenRating.likedBy.some(userId => userId.equals(user._id))) {
+        return 'like';
+      }
+      
+      if (tokenRating.dislikedBy.some(userId => userId.equals(user._id))) {
+        return 'dislike';
+      }
+      
+      return null;
+    } catch (error) {
+      logger.error(`Error getting user rating for token: ${error.message}`);
+      return null;
+    }
+  },
+
+  /**
+   * Get top rated tokens
+   * @param {number} limit - Number of tokens to return
+   * @returns {Promise<Array>} - Array of top rated tokens
+   */
+  async getTopRatedTokens(limit = 10) {
+    try {
+      return await TokenRating.getTopRatedTokens(limit);
+    } catch (error) {
+      logger.error(`Error getting top rated tokens: ${error.message}`);
+      return [];
+    }
+  }
+};
+
+module.exports = tokenRatingService; 

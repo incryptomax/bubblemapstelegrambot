@@ -127,16 +127,24 @@ module.exports = {
       return null;
     }
     
-    // Try to find EVM address pattern (0x followed by 40 hex characters)
-    const evmMatch = text.match(/0x[a-fA-F0-9]{40}/);
-    if (evmMatch) {
-      return evmMatch[0];
+    // Try to find EVM address pattern more aggressively (0x followed by 40 hex characters)
+    // This handles cases where the address might be surrounded by other text or characters
+    const evmMatches = text.match(/0x[a-fA-F0-9]{40}/g);
+    if (evmMatches && evmMatches.length > 0) {
+      return evmMatches[0]; // Return the first match
     }
     
-    // Try to find Solana address pattern
-    const solanaMatch = text.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-    if (solanaMatch) {
-      return solanaMatch[0];
+    // Try to find Solana address pattern more aggressively
+    const solanaMatches = text.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/g);
+    if (solanaMatches && solanaMatches.length > 0) {
+      // Filter out potential false positives that are not valid base58
+      for (const match of solanaMatches) {
+        // Check if it's a likely Solana address (all characters should be valid base58)
+        const isValidBase58 = /^[1-9A-HJ-NP-Za-km-z]+$/.test(match);
+        if (isValidBase58) {
+          return match;
+        }
+      }
     }
     
     return null;

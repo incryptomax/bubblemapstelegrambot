@@ -9,9 +9,12 @@ const levels = {
   debug: 3,
 };
 
+// Set default log level to debug in development environment
+const defaultLogLevel = process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+
 // Create the logger
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || defaultLogLevel,
   levels,
   format: winston.format.combine(
     winston.format.timestamp({
@@ -22,9 +25,20 @@ const logger = winston.createLogger({
     })
   ),
   transports: [
-    new winston.transports.Console(),
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.timestamp({
+          format: 'YYYY-MM-DD HH:mm:ss',
+        }),
+        winston.format.printf(info => {
+          return `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`;
+        })
+      )
+    }),
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
     new winston.transports.File({ filename: 'logs/combined.log' }),
+    new winston.transports.File({ filename: 'logs/debug.log', level: 'debug' })
   ],
 });
 
@@ -36,5 +50,10 @@ const logDirectory = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDirectory)) {
   fs.mkdirSync(logDirectory);
 }
+
+// Add a helper method to log objects
+logger.logObject = (level, message, obj) => {
+  logger[level](`${message} ${JSON.stringify(obj, null, 2)}`);
+};
 
 module.exports = logger; 

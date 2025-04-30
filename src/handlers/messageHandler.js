@@ -219,10 +219,10 @@ async function handleDefaultState(bot, msg, user, text) {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: 'Check a token', callback_data: 'check_token' }
+              { text: '🔍Check a token', callback_data: 'check_token' }
             ],
             [
-              { text: 'Help', callback_data: 'help' }
+              { text: '❓Help', callback_data: 'help' }
             ]
           ]
         }

@@ -2,6 +2,7 @@ const BroadcastMessage = require('../models/BroadcastMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const userService = require('./userService');
+const groupService = require('./groupService');
 
 /**
  * Service for admin functionality
@@ -62,6 +63,9 @@ class AdminService {
       // Get user statistics
       const userStats = await userService.getUserStats();
       
+      // Get group statistics
+      const groupStats = await groupService.getGroupStats({ limit: 5 });
+      
       // Get broadcast statistics
       const broadcasts = await BroadcastMessage.find()
         .sort({ createdAt: -1 })
@@ -77,6 +81,7 @@ class AdminService {
       
       return {
         userStats,
+        groupStats,
         broadcastStats: {
           total: totalBroadcasts,
           recent: broadcasts.map(b => ({
@@ -95,6 +100,14 @@ class AdminService {
       logger.error('Error getting system statistics:', error.message);
       return {
         userStats: await userService.getUserStats(),
+        groupStats: {
+          totalGroups: 0,
+          activeGroups: 0,
+          totalChecks: 0,
+          todayChecks: 0,
+          topGroups: [],
+          dailyActivity: []
+        },
         broadcastStats: {
           total: 0,
           recent: []
@@ -105,6 +118,95 @@ class AdminService {
         }
       };
     }
+  }
+
+  /**
+   * Get list of users with optional filtering
+   * @param {Object} options - Query options
+   * @param {number} options.limit - Maximum number of users to return (default: 20)
+   * @param {number} options.skip - Number of users to skip (for pagination)
+   * @param {string} options.sortBy - Field to sort by (default: lastActivity)
+   * @param {string} options.sortOrder - Sort order (asc or desc, default: desc)
+   * @param {boolean} options.activeOnly - Only return active users
+   * @returns {Promise<Array>} - Array of user objects
+   */
+  async getUserList(options = {}) {
+    try {
+      // Validate and sanitize options
+      const {
+        limit = 20,
+        skip = 0,
+        sortBy = 'lastActivity',
+        sortOrder = 'desc',
+        activeOnly = false
+      } = options;
+      
+      // Ensure limit is a valid number and capped at a reasonable value
+      const sanitizedLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 50);
+      
+      // Ensure skip is a valid number
+      const sanitizedSkip = Math.max(parseInt(skip) || 0, 0);
+      
+      // Validate sortBy field to prevent injection
+      const validSortFields = ['lastActivity', 'createdAt', 'username', 'firstName', 'isAdmin'];
+      const sanitizedSortBy = validSortFields.includes(sortBy) ? sortBy : 'lastActivity';
+      
+      // Validate sort order
+      const sanitizedSortOrder = sortOrder === 'asc' ? 1 : -1;
+      
+      // Build query
+      const query = {};
+      if (activeOnly === true) {
+        query.isActive = true;
+      }
+      
+      // Log the query being executed
+      logger.info(`Executing user list query: limit=${sanitizedLimit}, skip=${sanitizedSkip}, sortBy=${sanitizedSortBy}, sortOrder=${sanitizedSortOrder}, activeOnly=${activeOnly}`);
+      
+      // Build sort
+      const sort = { [sanitizedSortBy]: sanitizedSortOrder };
+      
+      // Use Promise.all to run both queries concurrently
+      const [users, totalUsers] = await Promise.all([
+        // Query database with timeout
+        Promise.race([
+          User.find(query)
+            .sort(sort)
+            .skip(sanitizedSkip)
+            .limit(sanitizedLimit)
+            .lean()
+            .exec(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Database query timed out')), 10000))
+        ]),
+        
+        // Get total count for pagination
+        User.countDocuments(query)
+      ]);
+      
+      return {
+        users,
+        totalUsers,
+        hasMore: totalUsers > sanitizedSkip + sanitizedLimit
+      };
+    } catch (error) {
+      logger.error(`Error getting user list: ${error.message}`, error);
+      // Return empty but valid result instead of throwing
+      return {
+        users: [],
+        totalUsers: 0,
+        hasMore: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Get list of groups with optional filtering
+   * @param {Object} options - Query options
+   * @returns {Promise<Object>} - Groups data with pagination info
+   */
+  async getGroupsList(options = {}) {
+    return await groupService.getGroupsList(options);
   }
 }
 

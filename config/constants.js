@@ -5,8 +5,8 @@
 module.exports = {
   // Bot messages
   messages: {
-    welcome: "👋 Welcome to Bubblemaps Token Checker Bot!\n\nI can help you check token information and visualize ownership distribution through bubble maps. Just send me a token contract address to get started.",
-    help: "🔍 *Bubblemaps Token Checker Bot Help*\n\n" +
+    welcome: "👋 Welcome to BubbleMaps Telegram Bot!\n\nI can help you check token information and visualize ownership distribution through bubble maps. Just send me a token contract address to get started.",
+    help: "🔍 *BubbleMaps Telegram Bot Help*\n\n" +
           "Send me a token contract address to check its information, or use these commands:\n\n" +
           "/start - Start or restart the bot\n" +
           "/help - Show this help message\n" +
@@ -14,9 +14,7 @@ module.exports = {
           "/favorites - View and manage your favorite tokens\n" +
           "/recent - See your recently checked tokens\n" +
           "/topstat - View community token statistics\n\n" +
-          "The bot automatically detects which blockchain your token belongs to, supporting: ETH, BSC, FTM, AVAX, CRO, ARBI, POLY, BASE, SOL, SONIC.\n\n" +
-          "📊 *Statistics Feature:*\n" +
-          "Use /topstat to see popular tokens, chains, and trending tokens in the community. Click the buttons to view detailed lists of top tokens, popular chains, and trending tokens.",
+          "The bot automatically detects which blockchain your token belongs to, supporting: ETH, BSC, FTM, AVAX, CRO, ARBI, POLY, BASE, SOL, SONIC.\n\n",
     invalidContract: "❌ Invalid contract address. Please check the address and try again.",
     processing: "⏳ Processing your request...",
     error: "❌ An error occurred. Please try again later.",
@@ -35,7 +33,10 @@ module.exports = {
     noRecent: "You haven't checked any tokens yet. Send me a contract address to get started.",
     addedToFavorites: "✅ Added to favorites",
     removedFromFavorites: "❌ Removed from favorites",
-    manageFavoritesTitle: "Select tokens to remove from your favorites:"
+    manageFavoritesTitle: "Select tokens to remove from your favorites:",
+    tokenLiked: "👍 You liked this token",
+    tokenDisliked: "👎 You disliked this token",
+    ratingRemoved: "Rating removed"
   },
   
   // Available chains
@@ -74,6 +75,12 @@ module.exports = {
     REMOVE_FAVORITE: "remove_favorite",
     VIEW_FAVORITES: "view_favorites",
     VIEW_RECENT: "view_recent",
-    VIEW_STATS: "view_stats"
+    VIEW_STATS: "view_stats",
+    LIKE_TOKEN: "like_token",
+    UNLIKE_TOKEN: "unlike_token",
+    DISLIKE_TOKEN: "dislike_token",
+    UNDISLIKE_TOKEN: "undislike_token",
+    VIEW_TOP_RATED: "view_top_rated",
+    VIEW_USER_LIST: "view_user_list"
   }
 }; 

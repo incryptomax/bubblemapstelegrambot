@@ -27,7 +27,7 @@ async function handleStart(bot, msg, user) {
     const keyboard = {
       inline_keyboard: [
         [
-          { text: 'Check a token', callback_data: 'check_token' },
+          { text: '🔍 Check a token', callback_data: 'check_token' },
         ],
         [
           { text: '⭐️ Favorites', callback_data: 'favorites' },
@@ -37,7 +37,7 @@ async function handleStart(bot, msg, user) {
           { text: '📊 Community Statistics', callback_data: 'back_to_stats' }
         ],
         [
-          { text: 'Help', callback_data: 'help' }
+          { text: '❓ Help', callback_data: 'help' }
         ]
       ]
     };
@@ -390,19 +390,14 @@ async function handleTopStat(bot, msg, user) {
     // Format statistics message
     const statsMessage = formatters.formatPublicStats(stats);
     
-    // Create keyboard with options to view specific rankings
+    // Create statistics main menu
     const keyboard = {
       inline_keyboard: [
-        [
-          { text: `🔝 All-Time Top (${stats.topTokens.length})`, callback_data: 'view_top_tokens' },
-          { text: `⛓️ Chains (${stats.popularChains.length})`, callback_data: 'view_popular_chains' }
-        ],
-        [
-          { text: `🔥 Trending 3d (${stats.trendingTokens.length})`, callback_data: 'view_trending_tokens' }
-        ],
-        [
-          { text: "⬅️ Back to Menu", callback_data: "start" }
-        ]
+        [{ text: '🔝 Most Checked Tokens', callback_data: 'view_top_tokens' }],
+        [{ text: '⛓️ Popular Chains', callback_data: 'view_popular_chains' }],
+        [{ text: '📈 Trending Tokens (3 Days)', callback_data: 'view_trending_tokens' }],
+        [{ text: '👍 Top Rated by Community', callback_data: 'view_top_rated_tokens' }],
+        [{ text: '⬅️ Back to Menu', callback_data: 'start' }]
       ]
     };
     
@@ -416,7 +411,7 @@ async function handleTopStat(bot, msg, user) {
       disable_web_page_preview: true // Disable web page previews for links
     });
     
-    logger.info(`User ${user.telegramId} viewed public statistics`);
+    logger.info(`User ${user.telegramId} viewed community statistics`);
   } catch (error) {
     logger.error(`Error handling /topstat command for user ${user.telegramId}:`, error.message);
     await bot.sendMessage(chatId, constants.messages.error);
@@ -488,18 +483,29 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
     }
     
     try {
-      // Fetch token data and market data first
-      const [mapData, metaData, marketData] = await Promise.all([
+      // Fetch token data, market data, and ratings
+      const [mapData, metaData, marketData, tokenRating] = await Promise.all([
         bubblemapsService.getTokenMapData(contractAddress, chainToUse),
         bubblemapsService.getTokenMetadata(contractAddress, chainToUse),
-        marketDataService.getTokenMarketData(contractAddress, chainToUse)
+        marketDataService.getTokenMarketData(contractAddress, chainToUse),
+        tokenRatingService.getTokenRating(contractAddress, chainToUse)
       ]);
+      
+      // Get user's rating for this token
+      const userRating = await tokenRatingService.getUserRatingForToken(user, contractAddress, chainToUse);
       
       // Generate the bubble map URL
       const mapUrl = bubblemapsService.generateMapUrl(contractAddress, chainToUse);
       
       // Format the token info message
-      const tokenInfo = formatters.formatTokenInfo(mapData, metaData, chainToUse, marketData);
+      const tokenInfo = formatters.formatTokenInfo(
+        mapData, 
+        metaData, 
+        chainToUse, 
+        marketData,
+        tokenRating,
+        userRating
+      );
       
       // Update recently checked tokens
       await userService.updateRecentlyChecked(
@@ -519,10 +525,18 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
         callback_data: `toggle_favorite:${chainToUse}:${contractAddress}`
       };
       
-      // Create reply markup with favorites button
+      // Create rating buttons with appropriate emojis based on user's current rating
+      const likeEmoji = userRating === 'like' ? '👍' : '👍🏻';
+      const dislikeEmoji = userRating === 'dislike' ? '👎' : '👎🏻';
+      
+      // Create reply markup with favorites button and rating buttons
       const replyMarkup = {
         inline_keyboard: [
           [{ text: 'View on BubbleMaps', url: mapUrl }],
+          [
+            { text: `${likeEmoji} Like`, callback_data: `like_token:${chainToUse}:${contractAddress}` },
+            { text: `${dislikeEmoji} Dislike`, callback_data: `dislike_token:${chainToUse}:${contractAddress}` }
+          ],
           [favoriteButton],
           [
             { text: 'Check Another Token', callback_data: 'check_token' },
@@ -533,9 +547,11 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
       };
       
       // Delete processing message
-      await bot.deleteMessage(chatId, processingMsg.message_id).catch(err => {
-        logger.warn(`Error deleting processing message: ${err.message}`);
-      });
+      if (processingMsg) {
+        await bot.deleteMessage(chatId, processingMsg.message_id).catch(err => {
+          logger.warn(`Error deleting processing message: ${err.message}`);
+        });
+      }
 
       try {
         // Get the screenshot using the screenshot service
@@ -570,7 +586,9 @@ async function processContractCheck(bot, chatId, user, contractAddress, chain, p
       logger.info(`User ${user.telegramId} checked token ${contractAddress} on chain ${chainToUse}`);
     } catch (dataError) {
       logger.error(`Error fetching token data: ${dataError.message}`);
-      await bot.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+      if (processingMsg) {
+        await bot.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+      }
       await bot.sendMessage(chatId, constants.messages.tokenDataError);
     }
   } catch (error) {

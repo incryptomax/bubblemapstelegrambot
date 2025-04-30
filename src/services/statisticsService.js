@@ -6,6 +6,7 @@ const Interaction = require('../models/Interaction');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const constants = require('../../config/constants');
+const TokenRating = require('../models/TokenRating');
 
 class StatisticsService {
   /**
@@ -28,13 +29,17 @@ class StatisticsService {
       // Get trending tokens (last 3 days)
       const trendingTokens = await this.getTrendingTokens(5, 3);
       
+      // Get top rated tokens
+      const topRatedTokens = await this.getTopRatedTokens(5);
+      
       return {
         totalUsers,
         activeUsers,
         totalChecks,
         topTokens,
         popularChains,
-        trendingTokens
+        trendingTokens,
+        topRatedTokens
       };
     } catch (error) {
       logger.error('Error getting public statistics:', error.message);
@@ -44,7 +49,8 @@ class StatisticsService {
         totalChecks: 0,
         topTokens: [],
         popularChains: [],
-        trendingTokens: []
+        trendingTokens: [],
+        topRatedTokens: []
       };
     }
   }
@@ -73,12 +79,31 @@ class StatisticsService {
       ]);
       
       // Format the results
-      return topTokens.map(item => ({
+      const formattedTokens = topTokens.map(item => ({
         token: item._id.token,
         chain: item._id.chain,
         checkCount: item.count,
         lastChecked: item.lastChecked
       }));
+      
+      // Try to find symbols for tokens
+      for (const token of formattedTokens) {
+        try {
+          // Check if token exists in TokenRating collection (which has symbol data)
+          const ratingData = await TokenRating.findOne({
+            contractAddress: token.token,
+            chain: token.chain
+          });
+          
+          if (ratingData && ratingData.symbol) {
+            token.symbol = ratingData.symbol;
+          }
+        } catch (error) {
+          logger.debug(`Could not fetch symbol for token ${token.token}: ${error.message}`);
+        }
+      }
+      
+      return formattedTokens;
     } catch (error) {
       logger.error('Error getting top tokens:', error.message);
       return [];
@@ -142,7 +167,7 @@ class StatisticsService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
       
-      return await Interaction.aggregate([
+      const trendingTokens = await Interaction.aggregate([
         { 
           $match: { 
             type: constants.interactionTypes.CHECK_TOKEN,
@@ -160,15 +185,50 @@ class StatisticsService {
         },
         { $sort: { count: -1 } },
         { $limit: limit }
-      ]).then(results => 
-        results.map(item => ({
-          token: item._id.token,
-          chain: item._id.chain,
-          checkCount: item.count
-        }))
-      );
+      ]);
+      
+      // Format the results
+      const formattedTokens = trendingTokens.map(item => ({
+        token: item._id.token,
+        chain: item._id.chain,
+        checkCount: item.count
+      }));
+      
+      // Try to find symbols for tokens
+      for (const token of formattedTokens) {
+        try {
+          // Check if token exists in TokenRating collection (which has symbol data)
+          const ratingData = await TokenRating.findOne({
+            contractAddress: token.token,
+            chain: token.chain
+          });
+          
+          if (ratingData && ratingData.symbol) {
+            token.symbol = ratingData.symbol;
+          }
+        } catch (error) {
+          logger.debug(`Could not fetch symbol for trending token ${token.token}: ${error.message}`);
+        }
+      }
+      
+      return formattedTokens;
     } catch (error) {
       logger.error('Error getting trending tokens:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Get top rated tokens by community
+   * @param {number} limit - Maximum number of tokens to return
+   * @returns {Promise<Array>} Array of top rated tokens
+   */
+  async getTopRatedTokens(limit = 10) {
+    try {
+      const tokens = await TokenRating.getTopRatedTokens(limit);
+      return tokens;
+    } catch (error) {
+      logger.error(`Error getting top rated tokens: ${error.message}`);
       return [];
     }
   }
