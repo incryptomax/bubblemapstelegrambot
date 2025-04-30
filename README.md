@@ -19,7 +19,7 @@ A powerful Telegram bot that provides instant token information and bubble maps 
 ### Token Analysis
 - 🔍 One-click token lookup by pasting any contract address directly in chat
 - 🔄 Automatic blockchain detection across all supported networks
-- 📊 Real-time market data integration (price, volume, market cap)
+- 📊 Real-time market data integration (price, volume, market cap, 24h change)
 - 📈 Decentralization score and metrics visualization
 - 👥 Detailed top holders identification and distribution analysis
 - 🖼️ Token ownership visualization with interactive bubble maps
