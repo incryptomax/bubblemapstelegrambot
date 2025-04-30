@@ -6,65 +6,6 @@ const constants = require('../../config/constants');
 const moment = require('moment');
 
 /**
- * Handle admin commands
- * @param {Object} bot - Telegram bot instance
- * @param {Object} msg - Telegram message object
- * @param {Object} user - User document
- * @param {string} command - Admin command
- * @param {Array} args - Command arguments
- */
-async function handleAdminCommand(bot, msg, user, command, args = []) {
-  const chatId = msg.chat.id;
-  
-  try {
-    // Check if user is admin
-    if (!user.isAdmin) {
-      await bot.sendMessage(chatId, constants.messages.adminOnly);
-      return;
-    }
-
-    // Track interaction
-    await userService.trackInteraction(user, constants.interactionTypes.ADMIN);
-    
-    // Handle different admin commands
-    switch (command) {
-      case 'stats':
-        await handleStats(bot, msg, user);
-        break;
-        
-      case 'broadcast':
-        if (args.length > 0) {
-          const message = args.join(' ');
-          await sendBroadcast(bot, user, message);
-        } else {
-          await bot.sendMessage(
-            chatId,
-            'Please provide a message to broadcast or send it as a separate message.',
-            {
-              reply_markup: {
-                force_reply: true,
-                selective: true
-              }
-            }
-          );
-          // Set user state to await broadcast message
-          await userService.setUserState(user, constants.userStates.AWAITING_BROADCAST);
-        }
-        break;
-        
-      default:
-        await showAdminOptions(bot, chatId);
-        break;
-    }
-    
-    logger.info(`Admin ${user.telegramId} used command /${command}`);
-  } catch (error) {
-    logger.error(`Error handling admin command ${command} for ${user.telegramId}: ${error.message}`, error);
-    await bot.sendMessage(chatId, constants.messages.error);
-  }
-}
-
-/**
  * Handle admin command to get statistics
  * @param {Object} bot - Telegram bot instance
  * @param {Object} msg - Telegram message object
@@ -89,17 +30,18 @@ async function handleStats(bot, msg, user) {
     // Get system stats
     const systemStats = await adminService.getSystemStats();
     
-    // Format stats - use the user stats directly instead of system stats
-    const statsMessage = formatters.formatUserStats(systemStats.userStats);
+    // Format stats
+    const statsMessage = formatters.formatSystemStats(systemStats);
     
-    // Create a keyboard with admin actions - remove group related buttons
+    // Create a keyboard with admin actions
     const keyboard = {
       inline_keyboard: [
+       
         [
-          { text: '👥 View User List', callback_data: 'admin_users' },
-          { text: '📣 Send Broadcast', callback_data: 'admin_broadcast' }
+          { text: '👥 View Users', callback_data: 'admin_users' }
         ],
         [
+          { text: '📣 Send Broadcast', callback_data: 'admin_broadcast' },
           { text: '🔄 Refresh Stats', callback_data: 'admin_stats' }
         ]
       ]
@@ -552,7 +494,7 @@ async function handleUserList(bot, msg, user, options = {}) {
       
       // Add back button
       keyboard.inline_keyboard.push([
-        { text: '⬅️ Back to Admin Panel', callback_data: 'admin_back' }
+        { text: '⬅️ Back to Admin Panel', callback_data: 'admin_stats' }
       ]);
       
       // Delete processing message
@@ -563,49 +505,32 @@ async function handleUserList(bot, msg, user, options = {}) {
       // Add page info to message - plain text, no formatting
       const pageInfo = `Page ${page} · ${userListData.users.length} of ${userListData.totalUsers} users`;
       
-      // Ensure there's a clear separation between the user list and pagination info
-      const messageWithPagination = `${userListMessage}\n\n${pageInfo}`;
-      
-      // Send user list with Markdown
+      // Send user list with proper error handling for Markdown
       try {
-        await bot.sendMessage(chatId, messageWithPagination, {
-          parse_mode: 'Markdown',
+        await bot.sendMessage(chatId, `${userListMessage}\n\n${pageInfo}`, {
+          parse_mode: 'MarkdownV2',
           reply_markup: keyboard
         });
       } catch (markdownError) {
         logger.error(`Error sending formatted user list: ${markdownError.message}`);
         
-        // If there's a specific error about parsing entities, try an alternative approach
-        if (markdownError.message.includes("can't parse entities")) {
-          // Try sending the user list without pagination info first
-          try {
-            await bot.sendMessage(chatId, userListMessage, {
-              parse_mode: 'Markdown',
-              reply_markup: keyboard
-            });
-            
-            // Then send the pagination info separately as plain text
-            await bot.sendMessage(chatId, pageInfo);
-            
-          } catch (secondError) {
-            // If even that fails, send as plain text
-            const plainTextMessage = userListMessage
-              .replace(/\*/g, '')   // Remove bold formatting
-              .replace(/\`/g, '')   // Remove code formatting
-              .replace(/\_/g, '');  // Remove italic formatting
-              
-            await bot.sendMessage(chatId, `${plainTextMessage}\n\n${pageInfo}`, {
-              reply_markup: keyboard
-            });
-          }
-        } else {
-          // For other errors, just try plain text
-          const plainTextMessage = messageWithPagination
-            .replace(/\*/g, '')   // Remove bold formatting
-            .replace(/\`/g, '')   // Remove code formatting
-            .replace(/\_/g, '');  // Remove italic formatting
-            
-          await bot.sendMessage(chatId, plainTextMessage, {
+        // If there's a parsing error, try sending as plain text
+        try {
+          const plainTextMessage = userListMessage
+            .replace(/\\/g, '') // Remove escape characters
+            .replace(/\*/g, '')  // Remove bold formatting
+            .replace(/\_/g, '')  // Remove italic formatting
+            .replace(/\[/g, '')  // Remove link formatting
+            .replace(/\]/g, '')  // Remove link formatting
+            .replace(/\(/g, '')  // Remove link formatting
+            .replace(/\)/g, ''); // Remove link formatting
+          
+          await bot.sendMessage(chatId, `${plainTextMessage}\n\n${pageInfo}`, {
+            reply_markup: keyboard
+          });
+        } catch (plainTextError) {
+          logger.error(`Failed to send plain text message: ${plainTextError.message}`);
+          await bot.sendMessage(chatId, 'Error displaying user list. Please try again later.', {
             reply_markup: keyboard
           });
         }
@@ -624,7 +549,7 @@ async function handleUserList(bot, msg, user, options = {}) {
       // Send a more specific error message
       await bot.sendMessage(chatId, `Error loading user list: ${innerError.message}`, {
         reply_markup: {
-          inline_keyboard: [[{ text: '⬅️ Back to Admin Panel', callback_data: 'admin_back' }]]
+          inline_keyboard: [[{ text: '⬅️ Back to Admin Panel', callback_data: 'admin_stats' }]]
         }
       });
     }
@@ -634,100 +559,17 @@ async function handleUserList(bot, msg, user, options = {}) {
     // Send a generic error message
     await bot.sendMessage(chatId, constants.messages.error, {
       reply_markup: {
-        inline_keyboard: [[{ text: '⬅️ Back to Admin Panel', callback_data: 'admin_back' }]]
+        inline_keyboard: [[{ text: '⬅️ Back to Admin Panel', callback_data: 'admin_stats' }]]
       }
     });
   }
 }
 
-/**
- * Handle admin callback queries
- * @param {Object} bot - Telegram bot instance
- * @param {Object} query - Callback query object
- * @param {Object} user - User document
- */
-async function handleCallbackQuery(bot, query, user) {
-  try {
-    // Extract callback data and parts
-    const data = query.data;
-    const [prefix, action, ...params] = data.split('_');
-    
-    // Handle only admin prefix
-    if (prefix !== 'admin') {
-      return false;
-    }
-    
-    // Check if user is admin
-    if (!user.isAdmin) {
-      await bot.answerCallbackQuery(query.id, { text: constants.messages.adminOnly });
-      return true;
-    }
-    
-    // Track admin interaction
-    await userService.trackInteraction(user, constants.interactionTypes.ADMIN);
-    
-    // Handle different admin actions
-    switch (action) {
-      case 'stats':
-        // Show main stats
-        await handleStats(bot, query.message, user);
-        break;
-        
-      case 'user_stats':
-        // Show detailed user stats
-        await handleUserStats(bot, query, user);
-        break;
-        
-      case 'users':
-        // Show user list (first page, active only)
-        await handleUserList(bot, query, user, { page: 1, limit: 10, activeOnly: true });
-        break;
-        
-      case 'users_page':
-        // Handle pagination for user list
-        if (params.length >= 1) {
-          const page = parseInt(params[0], 10);
-          const activeOnly = params[1] === 'active';
-          await handleUserList(bot, query, user, { page, limit: 10, activeOnly });
-        }
-        break;
-        
-      case 'broadcast':
-        // Show broadcast message form
-        await bot.answerCallbackQuery(query.id);
-        await bot.sendMessage(
-          query.message.chat.id,
-          'Please send me the message you want to broadcast to all users:',
-          {
-            reply_markup: {
-              force_reply: true,
-              selective: true
-            }
-          }
-        );
-        // Set user state to await broadcast message
-        await userService.setUserState(user, constants.userStates.AWAITING_BROADCAST);
-        break;
-        
-      default:
-        await bot.answerCallbackQuery(query.id, { text: 'Unknown action' });
-        return false;
-    }
-    
-    return true;
-  } catch (error) {
-    logger.error(`Error handling admin callback query: ${error.message}`, error);
-    await bot.answerCallbackQuery(query.id, { text: 'Error processing your request' });
-    return true;
-  }
-}
-
 module.exports = {
-  handleAdminCommand,
   handleStats,
-  handleUserStats,
-  handleCallbackQuery,
+  handleBroadcast,
   sendBroadcast,
   showAdminOptions,
-  handleUserList
+  handleUserList,
+  handleGroupList
 }; 

@@ -36,12 +36,29 @@ async function handleCallback(bot, callbackQuery, user) {
       await adminHandler.handleBroadcast(bot, callbackQuery.message, user);
     } else if (data === 'admin_stats') {
       await adminHandler.handleStats(bot, callbackQuery.message, user);
+    } else if (data === 'admin_user_stats') {
+      await adminHandler.handleUserStats(bot, callbackQuery, user);
+    } else if (data === 'admin_group_stats') {
+      await adminHandler.handleGroupStats(bot, callbackQuery, user);
+    } else if (data === 'admin_groups') {
+      await adminHandler.handleGroupList(bot, callbackQuery, user);
+    } else if (data.startsWith('admin_groups:')) {
+      // Handle pagination for group list
+      const parts = data.split(':');
+      if (parts.length >= 2) {
+        const page = parseInt(parts[1]) || 1;
+        const limit = parseInt(parts[2]) || 10;
+        const activeOnly = parts[3] === '1';
+        await adminHandler.handleGroupList(bot, callbackQuery, user, { page, limit, activeOnly });
+      }
     } else if (data === 'admin_users') {
       await handleAdminUsersCallback(bot, chatId, user, data);
     } else if (data.startsWith('admin_users:')) {
       await handleAdminUsersCallback(bot, chatId, user, data);
     } else if (data === 'admin_back') {
       await adminHandler.showAdminOptions(bot, chatId);
+    } else if (data === 'cancel_broadcast') {
+      await handleCancelBroadcastCallback(bot, callbackQuery, user);
     } else if (data === 'favorites') {
       await handleFavoritesCallback(bot, chatId, user);
     } else if (data === 'recent') {
@@ -771,6 +788,32 @@ async function handleAdminUsersCallback(bot, chatId, user, data) {
   } catch (error) {
     logger.error(`Error handling admin_users callback for user ${user.telegramId}: ${error.message}`);
     await bot.sendMessage(chatId, constants.messages.error);
+  }
+}
+
+/**
+ * Handle cancellation of broadcasting
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} callbackQuery - Callback query object
+ * @param {Object} user - User document
+ */
+async function handleCancelBroadcastCallback(bot, callbackQuery, user) {
+  try {
+    const chatId = callbackQuery.message.chat.id;
+    
+    // Reset user state to idle
+    await userService.updateUserState(user, 'idle');
+    
+    // Send confirmation message
+    await bot.sendMessage(chatId, 'Broadcast cancelled. What would you like to do next?');
+    
+    // Show admin options
+    await adminHandler.showAdminOptions(bot, chatId);
+    
+    logger.info(`Admin ${user.telegramId} cancelled the broadcast`);
+  } catch (error) {
+    logger.error(`Error handling cancel_broadcast callback: ${error.message}`);
+    await bot.sendMessage(callbackQuery.message.chat.id, constants.messages.error);
   }
 }
 

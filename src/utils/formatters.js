@@ -314,7 +314,42 @@ module.exports = {
   },
 
   /**
-   * Format full system statistics 
+   * Format group statistics for admin view
+   * @param {Object} stats - Group statistics object
+   * @returns {string} - Formatted message
+   */
+  formatGroupStats: (stats) => {
+    if (!stats) {
+      return 'No group statistics available';
+    }
+
+    let message = `*📊 Community Statistics*\n\n` +
+                  `*Groups:*\n` +
+                  `- Total: ${stats.totalGroups || 0}\n` +
+                  `- Active (7d): ${stats.activeGroups || 0}\n\n` +
+                  `*Activity:*\n` +
+                  `- Total Checks: ${stats.totalChecks.toLocaleString() || 0}\n` +
+                  `- Today: ${stats.todayChecks.toLocaleString() || 0}\n\n`;
+
+    // Add top groups section
+    if (stats.topGroups && stats.topGroups.length > 0) {
+      message += `*Top Active Communities:*\n`;
+      
+      stats.topGroups.forEach((group, index) => {
+        const groupName = group.name || 'Unknown Group';
+        const groupUsername = group.username ? `@${group.username}` : '';
+        const lastActive = moment(group.lastActivity).fromNow();
+        
+        message += `${index + 1}. ${groupName} ${groupUsername}\n` +
+                  `   👁️ ${group.tokensChecked} checks • Last active: ${lastActive}\n`;
+      });
+    }
+
+    return message;
+  },
+
+  /**
+   * Format full system statistics including users and groups
    * @param {Object} systemStats - System statistics object
    * @returns {string} - Formatted message
    */
@@ -323,22 +358,29 @@ module.exports = {
       return 'No system statistics available';
     }
 
-    const stats = systemStats.userStats;
-    if (!stats) {
-      return 'No statistics available';
+    let userStatsText = '';
+    if (systemStats.userStats) {
+      userStatsText = `*👤 Users:*\n` +
+                     `- Total: ${systemStats.userStats.totalUsers || 0}\n` +
+                     `- Active (24h): ${systemStats.userStats.activeUsers || 0}\n`;
     }
-    
-    return `*Bot Statistics*\n\n` +
-           `*Users:*\n` +
-           `- Total: ${stats.totalUsers || 0}\n` +
-           `- Active (24h): ${stats.activeUsers || 0}\n\n` +
-           `*Interactions:*\n` +
-           `- Total: ${stats.totalInteractions || 0}\n` +
-           `- Today: ${stats.todayInteractions || 0}\n\n` +
-           `*Tokens Checked:*\n` +
-           `- Total: ${stats.tokensChecked || 0}\n` +
-           `- Unique: ${stats.uniqueTokens || 0}\n\n` +
-           `*Popular Chains:*\n${formatPopularChains(stats.popularChains)}`;
+
+
+    let activityStatsText = '';
+    if (systemStats.userStats || systemStats.groupStats) {
+      const totalUserChecks = systemStats.userStats ? systemStats.userStats.tokensChecked || 0 : 0;
+      const totalGroupChecks = systemStats.groupStats ? systemStats.groupStats.totalChecks || 0 : 0;
+      const todayUserChecks = systemStats.userStats ? systemStats.userStats.todayInteractions || 0 : 0;
+      const todayGroupChecks = systemStats.groupStats ? systemStats.groupStats.todayChecks || 0 : 0;
+      
+      activityStatsText = `*📈 Activity:*\n` +
+                         `- Total Checks: ${(totalUserChecks + totalGroupChecks).toLocaleString()}\n` +
+                         `- Today: ${(todayUserChecks + todayGroupChecks).toLocaleString()}\n`;
+    }
+
+    return `*🤖 Bot System Statistics*\n\n` +
+           userStatsText + '\n' +
+           activityStatsText;
   },
 
   /**
@@ -498,35 +540,32 @@ module.exports = {
     
     users.forEach((user, index) => {
       try {
-        // Safely extract user data and escape special markdown chars
-        const escapeMarkdown = (text) => {
-          if (!text) return '';
-          return text.replace(/([_*[\]()~`>#+\-=|{}.!])/g, '\\$1');
-        };
+        // Safely extract user data - escape any markdown special characters
+        const displayUsername = user.username ? 
+          `@${user.username.replace(/([_*[\]()~`>#+=|{}.!-])/g, '\\$1')}` : 
+          'No username';
         
-        const username = user.username ? user.username : 'No username';
-        const displayUsername = user.username ? `@${escapeMarkdown(username)}` : 'No username';
-        
-        const firstName = escapeMarkdown(user.firstName || '');
-        const lastName = escapeMarkdown(user.lastName || '');
+        // Escape special markdown characters in names
+        const firstName = user.firstName ? user.firstName.replace(/([_*[\]()~`>#+=|{}.!-])/g, '\\$1') : '';
+        const lastName = user.lastName ? user.lastName.replace(/([_*[\]()~`>#+=|{}.!-])/g, '\\$1') : '';
         const displayName = `${firstName} ${lastName}`.trim() || 'No name';
         
         const lastActive = user.lastActivity ? moment(user.lastActivity).fromNow() : 'Unknown';
         const activeStatus = user.isActive ? '✅' : '❌';
         const adminStatus = user.isAdmin ? '👑' : '';
         
-        // Use simple formatting
-        message += `*${index + 1}.* `;
+        // Build the user entry with simple formatting, avoiding complex markdown
+        message += `${index + 1}\\. `; // Escape the period to avoid list formatting
         
         if (adminStatus) {
           message += `${adminStatus} `;
         }
         
-        // Use simple plain text for most content to avoid markdown issues
+        // Use simple plain text with double spaces to create visual separation
         message += `${activeStatus} ${displayName}\n`;
-        message += `   🆔 ID: ${user.telegramId || 'Unknown'}\n`;
-        message += `   👤 Username: ${displayUsername}\n`;
-        message += `   🕒 Last active: ${lastActive}\n`;
+        message += `  🆔 ID: ${user.telegramId || 'Unknown'}\n`;
+        message += `  👤 Username: ${displayUsername}\n`;
+        message += `  🕒 Last active: ${lastActive}\n`;
         
         // Add separator between users except for the last one
         if (index < users.length - 1) {
@@ -535,7 +574,7 @@ module.exports = {
       } catch (error) {
         // If formatting a specific user fails, log it and continue with a placeholder
         console.error(`Error formatting user at index ${index}:`, error);
-        message += `*${index + 1}.* ⚠️ Error displaying user\n\n`;
+        message += `${index + 1}\\. ⚠️ Error displaying user\n\n`;
       }
     });
     

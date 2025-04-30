@@ -2,7 +2,7 @@ const BroadcastMessage = require('../models/BroadcastMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const userService = require('./userService');
-const moment = require('moment');
+const groupService = require('./groupService');
 
 /**
  * Service for admin functionality
@@ -56,82 +56,65 @@ class AdminService {
   
   /**
    * Get system statistics
-   * @returns {Promise<Object>} - Stats object
+   * @returns {Promise<Object>} - System statistics
    */
   async getSystemStats() {
     try {
-      // Get user stats
-      const totalUsers = await User.countDocuments();
-      const activeUsers = await User.countDocuments({
-        lastActivity: { $gte: moment().subtract(24, 'hours').toDate() }
-      });
+      // Get user statistics
+      const userStats = await userService.getUserStats();
       
-      // Get interaction stats
-      const totalInteractions = await User.aggregate([
-        { $group: { _id: null, totalInteractions: { $sum: '$interactionCount' } } }
-      ]);
+      // Get group statistics
+      const groupStats = await groupService.getGroupStats({ limit: 5 });
       
-      // Get interactions for today
-      const startOfDay = moment().startOf('day').toDate();
-      const todayInteractions = await User.aggregate([
-        { 
-          $match: { 
-            lastActivity: { $gte: startOfDay } 
-          } 
-        },
-        { 
-          $group: { 
-            _id: null, 
-            todayInteractions: { $sum: '$dailyInteractionCount' } 
-          } 
-        }
-      ]);
+      // Get broadcast statistics
+      const broadcasts = await BroadcastMessage.find()
+        .sort({ createdAt: -1 })
+        .limit(5);
       
-      // Get tokens checked
-      const tokensCheckedAgg = await User.aggregate([
-        { $group: { _id: null, tokensChecked: { $sum: '$tokenCheckCount' } } }
-      ]);
+      const totalBroadcasts = await BroadcastMessage.countDocuments();
       
-      // Get unique tokens checked
-      const uniqueTokensAgg = await User.aggregate([
-        { $project: { tokenCount: { $size: { $ifNull: ['$tokensChecked', []] } } } },
-        { $group: { _id: null, uniqueTokens: { $sum: '$tokenCount' } } }
-      ]);
-      
-      // Get popular chains
-      const popularChainsAgg = await User.aggregate([
-        { $unwind: '$chainsUsed' },
-        { $group: { _id: '$chainsUsed.chainId', count: { $sum: '$chainsUsed.count' } } },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-        { $project: { id: '$_id', count: 1, _id: 0 } }
-      ]);
-      
-      // Compile user stats
-      const userStats = {
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        totalInteractions: (totalInteractions[0]?.totalInteractions) || 0,
-        todayInteractions: (todayInteractions[0]?.todayInteractions) || 0,
-        tokensChecked: (tokensCheckedAgg[0]?.tokensChecked) || 0,
-        uniqueTokens: (uniqueTokensAgg[0]?.uniqueTokens) || 0,
-        popularChains: popularChainsAgg || []
+      // Get DB size (approximate)
+      const dbStats = {
+        users: await User.collection.stats().then(stats => stats.size),
+        broadcasts: await BroadcastMessage.collection.stats().then(stats => stats.size)
       };
       
       return {
-        userStats
+        userStats,
+        groupStats,
+        broadcastStats: {
+          total: totalBroadcasts,
+          recent: broadcasts.map(b => ({
+            id: b._id,
+            date: b.createdAt,
+            message: b.message.substring(0, 50) + (b.message.length > 50 ? '...' : ''),
+            status: b.status,
+            targetCount: b.targetCount,
+            deliveredCount: b.deliveredCount,
+            failedCount: b.failedCount
+          }))
+        },
+        dbStats
       };
     } catch (error) {
-      logger.error(`Error getting system stats: ${error.message}`, error);
+      logger.error('Error getting system statistics:', error.message);
       return {
-        userStats: {
-          totalUsers: 0,
-          activeUsers: 0,
-          totalInteractions: 0,
-          todayInteractions: 0,
-          tokensChecked: 0,
-          uniqueTokens: 0,
-          popularChains: []
+        userStats: await userService.getUserStats(),
+        groupStats: {
+          totalGroups: 0,
+          activeGroups: 0,
+          totalChecks: 0,
+          todayChecks: 0,
+          topGroups: [],
+          dailyActivity: []
+        },
+        broadcastStats: {
+          total: 0,
+          recent: []
+        },
+        dbStats: {
+          users: 0,
+          broadcasts: 0
         }
       };
     }
