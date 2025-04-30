@@ -42,11 +42,19 @@ class MarketDataService {
       }
 
       // Get market data using CoinGecko ID
-      const marketData = await this._getMarketData(tokenInfo.id);
-      if (!marketData) {
+      const rawMarketData = await this._getMarketData(tokenInfo.id);
+      if (!rawMarketData || !rawMarketData.market_data) {
         logger.warn(`Market data for token ${tokenAddress} not available`);
         return null;
       }
+      
+      // Extract and format the relevant market data
+      const marketData = {
+        price: rawMarketData.market_data.current_price?.usd || 0,
+        price_change_24h: rawMarketData.market_data.price_change_percentage_24h || 0,
+        market_cap: rawMarketData.market_data.market_cap?.usd || 0,
+        volume_24h: rawMarketData.market_data.total_volume?.usd || 0
+      };
 
       // Cache the result
       this._cacheData(cacheKey, marketData);
