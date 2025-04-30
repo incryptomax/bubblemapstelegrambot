@@ -12,6 +12,8 @@ A powerful Telegram bot that provides instant token information and bubble maps 
   </a>
 </p>
 
+
+
 ## 🌟 Features
 
 ### Token Analysis
@@ -42,6 +44,14 @@ A powerful Telegram bot that provides instant token information and bubble maps 
 - 📋 User management tools
 - 📝 Detailed logging system for monitoring bot activity
 
+## 🎬 Demo Video
+
+Watch our demo video to see the BubbleMaps Telegram Bot in action:
+
+[![BubbleMaps Telegram Bot Demo](https://img.youtube.com/vi/2W5heXSih40/0.jpg)](https://www.youtube.com/watch?v=2W5heXSih40)
+
+Click the image above to watch the demo on YouTube.
+
 ## 🔗 Supported Networks
 
 - Ethereum (ETH) - Auto-detected
@@ -54,6 +64,7 @@ A powerful Telegram bot that provides instant token information and bubble maps 
 - Base (BASE) - Auto-detected
 - Solana (SOL) - Auto-detected
 - Sonic (SONIC) - Auto-detected
+
 
 ## 🚀 Quick Start
 
