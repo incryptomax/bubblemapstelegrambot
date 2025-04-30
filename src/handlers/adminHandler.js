@@ -6,6 +6,65 @@ const constants = require('../../config/constants');
 const moment = require('moment');
 
 /**
+ * Handle admin commands
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} msg - Telegram message object
+ * @param {Object} user - User document
+ * @param {string} command - Admin command
+ * @param {Array} args - Command arguments
+ */
+async function handleAdminCommand(bot, msg, user, command, args = []) {
+  const chatId = msg.chat.id;
+  
+  try {
+    // Check if user is admin
+    if (!user.isAdmin) {
+      await bot.sendMessage(chatId, constants.messages.adminOnly);
+      return;
+    }
+
+    // Track interaction
+    await userService.trackInteraction(user, constants.interactionTypes.ADMIN);
+    
+    // Handle different admin commands
+    switch (command) {
+      case 'stats':
+        await handleStats(bot, msg, user);
+        break;
+        
+      case 'broadcast':
+        if (args.length > 0) {
+          const message = args.join(' ');
+          await sendBroadcast(bot, user, message);
+        } else {
+          await bot.sendMessage(
+            chatId,
+            'Please provide a message to broadcast or send it as a separate message.',
+            {
+              reply_markup: {
+                force_reply: true,
+                selective: true
+              }
+            }
+          );
+          // Set user state to await broadcast message
+          await userService.setUserState(user, constants.userStates.AWAITING_BROADCAST);
+        }
+        break;
+        
+      default:
+        await showAdminOptions(bot, chatId);
+        break;
+    }
+    
+    logger.info(`Admin ${user.telegramId} used command /${command}`);
+  } catch (error) {
+    logger.error(`Error handling admin command ${command} for ${user.telegramId}: ${error.message}`, error);
+    await bot.sendMessage(chatId, constants.messages.error);
+  }
+}
+
+/**
  * Handle admin command to get statistics
  * @param {Object} bot - Telegram bot instance
  * @param {Object} msg - Telegram message object
@@ -30,22 +89,17 @@ async function handleStats(bot, msg, user) {
     // Get system stats
     const systemStats = await adminService.getSystemStats();
     
-    // Format stats
-    const statsMessage = formatters.formatSystemStats(systemStats);
+    // Format stats - use the user stats directly instead of system stats
+    const statsMessage = formatters.formatUserStats(systemStats.userStats);
     
-    // Create a keyboard with admin actions
+    // Create a keyboard with admin actions - remove group related buttons
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '👤 User Stats', callback_data: 'admin_user_stats' },
-          { text: '👥 Group Stats', callback_data: 'admin_group_stats' }
+          { text: '👥 View User List', callback_data: 'admin_users' },
+          { text: '📣 Send Broadcast', callback_data: 'admin_broadcast' }
         ],
         [
-          { text: '👥 View Users', callback_data: 'admin_users' },
-          { text: '👥 View Groups', callback_data: 'admin_groups' }
-        ],
-        [
-          { text: '📣 Send Broadcast', callback_data: 'admin_broadcast' },
           { text: '🔄 Refresh Stats', callback_data: 'admin_stats' }
         ]
       ]
@@ -586,11 +640,94 @@ async function handleUserList(bot, msg, user, options = {}) {
   }
 }
 
+/**
+ * Handle admin callback queries
+ * @param {Object} bot - Telegram bot instance
+ * @param {Object} query - Callback query object
+ * @param {Object} user - User document
+ */
+async function handleCallbackQuery(bot, query, user) {
+  try {
+    // Extract callback data and parts
+    const data = query.data;
+    const [prefix, action, ...params] = data.split('_');
+    
+    // Handle only admin prefix
+    if (prefix !== 'admin') {
+      return false;
+    }
+    
+    // Check if user is admin
+    if (!user.isAdmin) {
+      await bot.answerCallbackQuery(query.id, { text: constants.messages.adminOnly });
+      return true;
+    }
+    
+    // Track admin interaction
+    await userService.trackInteraction(user, constants.interactionTypes.ADMIN);
+    
+    // Handle different admin actions
+    switch (action) {
+      case 'stats':
+        // Show main stats
+        await handleStats(bot, query.message, user);
+        break;
+        
+      case 'user_stats':
+        // Show detailed user stats
+        await handleUserStats(bot, query, user);
+        break;
+        
+      case 'users':
+        // Show user list (first page, active only)
+        await handleUserList(bot, query, user, { page: 1, limit: 10, activeOnly: true });
+        break;
+        
+      case 'users_page':
+        // Handle pagination for user list
+        if (params.length >= 1) {
+          const page = parseInt(params[0], 10);
+          const activeOnly = params[1] === 'active';
+          await handleUserList(bot, query, user, { page, limit: 10, activeOnly });
+        }
+        break;
+        
+      case 'broadcast':
+        // Show broadcast message form
+        await bot.answerCallbackQuery(query.id);
+        await bot.sendMessage(
+          query.message.chat.id,
+          'Please send me the message you want to broadcast to all users:',
+          {
+            reply_markup: {
+              force_reply: true,
+              selective: true
+            }
+          }
+        );
+        // Set user state to await broadcast message
+        await userService.setUserState(user, constants.userStates.AWAITING_BROADCAST);
+        break;
+        
+      default:
+        await bot.answerCallbackQuery(query.id, { text: 'Unknown action' });
+        return false;
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error(`Error handling admin callback query: ${error.message}`, error);
+    await bot.answerCallbackQuery(query.id, { text: 'Error processing your request' });
+    return true;
+  }
+}
+
 module.exports = {
+  handleAdminCommand,
   handleStats,
-  handleBroadcast,
+  handleUserStats,
+  handleCallbackQuery,
   sendBroadcast,
   showAdminOptions,
-  handleUserList,
-  handleGroupList
+  handleUserList
 }; 
